@@ -14,7 +14,7 @@ import {
 import {
   state, initCubes, getCube, allCubesComplete, isValidCube, cubePos,
   PYRAMID_ROWS, CUBE_SIZE, PILLAR_HEIGHT, HOP_DURATION, COLOR_SCHEMES,
-  emitAudio, emitEffect, saveStats, saveAchievements,
+  emitAudio, emitEffect, saveStats, saveAchievements, saveHighScore,
 } from './game-state';
 import type { EnemyData, ColorScheme, PowerUp, PowerUpType } from './game-state';
 
@@ -27,6 +27,8 @@ function cubeColor(colorState: number, targetState: number, scheme: ColorScheme)
   const cs = COLOR_SCHEMES[scheme];
   if (colorState >= targetState) return cs.target;
   if (colorState === 0) return cs.start;
+  if (targetState >= 3 && colorState === 1) return cs.mid;
+  if (targetState >= 3 && colorState === 2) return cs.mid2;
   return cs.mid;
 }
 
@@ -173,6 +175,13 @@ export class GameSystem extends createSystem({}) {
     state.freezeActive = false;
     state.scoreBoostActive = false;
     state.roundAnnounceTimer = ROUND_ANNOUNCE_DURATION;
+    state.roundStartTime = performance.now() / 1000;
+    state.roundElapsed = 0;
+    state.powerUpsCollectedTypes = new Set();
+    state.uggWrongwaysSurvived = 0;
+    state.cameraShakeIntensity = 0;
+    state.cameraShakeTimer = 0;
+    state.cubePulses = [];
     this.clearPowerUpMeshes();
     this.buildPyramid();
     this.updateCubeColors();
@@ -194,6 +203,9 @@ export class GameSystem extends createSystem({}) {
     state.powerUps = [];
     state.powerUpSpawnTimer = POWERUP_SPAWN_BASE * 0.5;
     state.roundAnnounceTimer = ROUND_ANNOUNCE_DURATION;
+    state.roundStartTime = performance.now() / 1000;
+    state.roundElapsed = 0;
+    state.cubePulses = [];
     this.clearPowerUpMeshes();
     this.buildPyramid();
     this.updateCubeColors();
@@ -297,6 +309,10 @@ export class GameSystem extends createSystem({}) {
 
     // Activate effect
     state.activePowerUp = { type: pu.type, timeLeft: POWERUP_DURATION };
+    state.powerUpsCollectedTypes.add(pu.type);
+    if (state.powerUpsCollectedTypes.size >= 3) {
+      this.checkAchievement('all_powerups');
+    }
     switch (pu.type) {
       case 'shield':
         state.shieldActive = true;
@@ -306,6 +322,10 @@ export class GameSystem extends createSystem({}) {
         break;
       case 'freeze':
         state.freezeActive = true;
+        // Check if any Coily is on field
+        if (state.enemies.some(e => e.type === 'coily' && e.active)) {
+          this.checkAchievement('freeze_coily');
+        }
         break;
     }
 
@@ -383,6 +403,8 @@ export class GameSystem extends createSystem({}) {
       const pos = cubePos(state.playerRow, state.playerCol);
       emitEffect({ type: 'combo', x: pos.x, y: pos.y + 1, z: pos.z, combo: state.combo });
     }
+    if (state.combo >= 5) this.checkAchievement('combo_5');
+    if (state.combo >= 10) this.checkAchievement('combo_10');
   }
 
   private resetCombo() {
@@ -420,15 +442,34 @@ export class GameSystem extends createSystem({}) {
   private spawnEnemy() {
     const types: EnemyData['type'][] = state.mode === 'zen' ? [] :
       state.difficulty === 'easy' ? ['coily'] :
-      state.difficulty === 'hard' ? ['coily', 'slick', 'sam', 'coily'] :
-      ['coily', 'slick', 'sam'];
+      state.difficulty === 'hard' ?
+        (state.round >= 4 ? ['coily', 'slick', 'sam', 'coily', 'ugg', 'wrongway'] :
+         ['coily', 'slick', 'sam', 'coily']) :
+      (state.round >= 5 ? ['coily', 'slick', 'sam', 'ugg', 'wrongway'] :
+       ['coily', 'slick', 'sam']);
     if (types.length === 0) return;
-    if (state.enemies.length >= (state.difficulty === 'hard' ? 4 : 2)) return;
+    if (state.enemies.length >= (state.difficulty === 'hard' ? 4 : 3)) return;
     const type = types[Math.floor(Math.random() * types.length)];
-    const startCol = Math.floor(Math.random() * 2);
+
+    let startRow: number;
+    let startCol: number;
+
+    if (type === 'ugg') {
+      // Ugg enters from the left side of the pyramid
+      startRow = 2 + Math.floor(Math.random() * (PYRAMID_ROWS - 2));
+      startCol = 0;
+    } else if (type === 'wrongway') {
+      // Wrongway enters from the right side
+      startRow = 2 + Math.floor(Math.random() * (PYRAMID_ROWS - 2));
+      startCol = startRow;
+    } else {
+      startRow = 0;
+      startCol = Math.floor(Math.random() * 2);
+    }
+
     const enemy: EnemyData = {
       type,
-      row: 0,
+      row: startRow,
       col: startCol,
       active: true,
       isEgg: type === 'coily',
@@ -437,14 +478,17 @@ export class GameSystem extends createSystem({}) {
     const id = this.enemyIdCounter++;
     state.enemies.push(enemy);
     const geo = new SphereGeometry(CUBE_SIZE * 0.3, 8, 8);
-    const color = type === 'coily' ? 0xaa00ff : type === 'slick' ? 0x00ff44 : 0x4488ff;
+    const color = type === 'coily' ? 0xaa00ff :
+                  type === 'slick' ? 0x00ff44 :
+                  type === 'sam' ? 0x4488ff :
+                  type === 'ugg' ? 0xff6600 : 0xff0066; // ugg=orange, wrongway=pink
     const mat = new MeshStandardMaterial({
       color: new Color(color),
       emissive: new Color(color),
       emissiveIntensity: 0.5,
     });
     const mesh = new Mesh(geo, mat);
-    const pos = cubePos(0, startCol);
+    const pos = cubePos(startRow, startCol);
     mesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.3, pos.z);
     this.scene.add(mesh);
     this.enemyMeshes.set(id, mesh);
@@ -491,6 +535,38 @@ export class GameSystem extends createSystem({}) {
             if (dr !== 0 && isValidCube(enemy.row + dr, enemy.col)) {
               enemy.row += dr;
             }
+          }
+        }
+      } else if (enemy.type === 'ugg') {
+        // Ugg moves rightward along the same row, then up
+        if (enemy.col < enemy.row) {
+          enemy.col++;
+          emitAudio('ugg_move');
+        } else {
+          // Move up one row
+          enemy.row--;
+          if (enemy.row < 0 || !isValidCube(enemy.row, Math.min(enemy.col, enemy.row))) {
+            enemy.active = false;
+            state.uggWrongwaysSurvived++;
+            const meshKey = meshKeys[enemyIdx];
+            if (meshKey !== undefined) keysToRemove.push(meshKey);
+          } else {
+            enemy.col = Math.min(enemy.col, enemy.row);
+          }
+        }
+      } else if (enemy.type === 'wrongway') {
+        // Wrongway moves leftward along the same row, then up
+        if (enemy.col > 0) {
+          enemy.col--;
+          emitAudio('ugg_move');
+        } else {
+          // Move up one row
+          enemy.row--;
+          if (enemy.row < 0 || !isValidCube(enemy.row, 0)) {
+            enemy.active = false;
+            state.uggWrongwaysSurvived++;
+            const meshKey = meshKeys[enemyIdx];
+            if (meshKey !== undefined) keysToRemove.push(meshKey);
           }
         }
       } else {
@@ -555,12 +631,14 @@ export class GameSystem extends createSystem({}) {
 
   private playerDeath() {
     if (state.deathAnimating || state.gameOver) return;
-    // Shield doesn't protect from falling off (already checked above for enemy collisions)
     state.lives--;
     state.deathAnimating = true;
     state.deathTimer = 1.0;
     this.deathsThisRound++;
     this.resetCombo();
+    // Camera shake
+    state.cameraShakeIntensity = 0.15;
+    state.cameraShakeTimer = 0.4;
     const pos = cubePos(state.playerRow, state.playerCol);
     emitAudio('death');
     emitEffect({ type: 'death', x: pos.x, y: pos.y + 0.5, z: pos.z });
@@ -576,6 +654,13 @@ export class GameSystem extends createSystem({}) {
         state.stats.highScore = state.score;
         saveStats(state.stats);
       }
+      // Save to top-5 leaderboard
+      saveHighScore({
+        score: state.score,
+        round: state.round - 1,
+        mode: state.mode,
+        date: new Date().toISOString().slice(0, 10),
+      });
       state.screen = 'results';
       return;
     }
@@ -674,6 +759,19 @@ export class GameSystem extends createSystem({}) {
       this.updateCubeColors();
       // Increment combo on cube color change
       this.incrementCombo();
+      // Trigger cube pulse animation
+      const cubeIdx = state.cubes.indexOf(cube);
+      if (cubeIdx >= 0) {
+        state.cubePulses.push({
+          index: cubeIdx,
+          timer: 0.3,
+          color: COLOR_SCHEMES[state.colorScheme].target,
+        });
+      }
+      // Multi-step achievement
+      if (cube.targetState >= 2 && cube.colorState >= cube.targetState) {
+        this.checkAchievement('multihop');
+      }
     }
 
     const pos = cubePos(state.playerRow, state.playerCol);
@@ -700,9 +798,23 @@ export class GameSystem extends createSystem({}) {
     this.checkAchievement('round_1');
     if (state.stats.roundsCleared >= 5) this.checkAchievement('round_5');
     if (state.stats.roundsCleared >= 10) this.checkAchievement('round_10');
+    if (state.stats.roundsCleared >= 15) this.checkAchievement('round_15');
     if (state.stats.roundsCleared >= 20) this.checkAchievement('round_20');
     if (state.mode === 'speed') this.checkAchievement('speed_clear');
     if (state.mode === 'challenge') this.checkAchievement('challenge_clear');
+
+    // Speedrun: clear a round in under 15 seconds
+    if (state.roundElapsed < 15) this.checkAchievement('speedrun');
+
+    // No-disc: clear round 5+ without using discs
+    if (state.round - 1 >= 5 && !state.discUsed && state.discLeft && state.discRight) {
+      this.checkAchievement('no_disc');
+    }
+
+    // Count survived Ugg/Wrongway enemies
+    if (state.uggWrongwaysSurvived >= 3) {
+      this.checkAchievement('survive_ugg');
+    }
 
     setTimeout(() => {
       if (state.screen === 'playing') {
@@ -775,7 +887,10 @@ export class GameSystem extends createSystem({}) {
         if (key !== undefined) {
           const mesh = this.enemyMeshes.get(key);
           if (mesh) {
-            const color = enemy.type === 'coily' ? 0xaa00ff : enemy.type === 'slick' ? 0x00ff44 : 0x4488ff;
+            const color = enemy.type === 'coily' ? 0xaa00ff :
+                          enemy.type === 'slick' ? 0x00ff44 :
+                          enemy.type === 'sam' ? 0x4488ff :
+                          enemy.type === 'ugg' ? 0xff6600 : 0xff0066;
             const mat = mesh.material as MeshStandardMaterial;
             mat.emissive.setHex(color);
             mat.emissiveIntensity = 0.5;
@@ -802,6 +917,42 @@ export class GameSystem extends createSystem({}) {
 
     // Round announcement pause
     this.updateRoundAnnouncement(delta);
+
+    // Track round elapsed time
+    if (!state.roundComplete && !state.deathAnimating && state.roundAnnounceTimer <= 0) {
+      state.roundElapsed += delta;
+    }
+
+    // Camera shake
+    if (state.cameraShakeTimer > 0) {
+      state.cameraShakeTimer -= delta;
+      const intensity = state.cameraShakeIntensity * (state.cameraShakeTimer / 0.4);
+      const shakeX = (Math.random() - 0.5) * intensity;
+      const shakeY = (Math.random() - 0.5) * intensity;
+      this.world.camera.position.x += shakeX;
+      this.world.camera.position.y += shakeY;
+      if (state.cameraShakeTimer <= 0) {
+        state.cameraShakeIntensity = 0;
+      }
+    }
+
+    // Cube pulse animations
+    for (let i = state.cubePulses.length - 1; i >= 0; i--) {
+      const pulse = state.cubePulses[i];
+      pulse.timer -= delta;
+      const mesh = this.cubeMeshes[pulse.index];
+      if (mesh) {
+        const t = pulse.timer / 0.3;
+        const scale = 1 + Math.sin((1 - t) * Math.PI) * 0.2;
+        mesh.scale.set(scale, scale, scale);
+        if (pulse.timer <= 0) {
+          mesh.scale.set(1, 1, 1);
+        }
+      }
+      if (pulse.timer <= 0) {
+        state.cubePulses.splice(i, 1);
+      }
+    }
 
     // Handle pending input
     if (state.pendingInput && !state.hopping && !state.deathAnimating && !state.roundComplete) {
@@ -869,6 +1020,7 @@ export class GameSystem extends createSystem({}) {
     if (state.score >= 10000) this.checkAchievement('score_10k');
     if (state.score >= 50000) this.checkAchievement('score_50k');
     if (state.score >= 100000) this.checkAchievement('score_100k');
+    if (state.score >= 250000) this.checkAchievement('score_250k');
     if (state.stats.enemiesDefeated >= 10) this.checkAchievement('defeat_10');
     if (state.stats.enemiesDefeated >= 50) this.checkAchievement('defeat_50');
     if (state.stats.gamesPlayed >= 10) this.checkAchievement('play_10');

@@ -101,6 +101,10 @@ export class AudioSystem extends createSystem({}) {
           this.playTone(clampedFreq * 1.5, 0.15, 'sine', 0.15);
         }
         break;
+      case 'ugg_move':
+        // Low rumble for lateral movement
+        this.playTone(180, 0.12, 'triangle', 0.12);
+        break;
     }
   }
 

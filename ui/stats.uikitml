@@ -1,9 +1,15 @@
-<view name="root" flexDirection="column" alignItems="center" padding="25" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="450" height="400">
+<view name="root" flexDirection="column" alignItems="center" padding="20" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="450" height="550">
   <text name="title" fontSize="28" color="#00ffff" fontWeight="bold">CAREER STATS</text>
-  <text name="stat-games" fontSize="16" color="#ffffff" marginTop="20">Games Played: 0</text>
-  <text name="stat-rounds" fontSize="16" color="#ffffff" marginTop="10">Rounds Cleared: 0</text>
-  <text name="stat-enemies" fontSize="16" color="#ffffff" marginTop="10">Enemies Defeated: 0</text>
-  <text name="stat-cubes" fontSize="16" color="#ffffff" marginTop="10">Cubes Hopped: 0</text>
-  <text name="stat-high" fontSize="16" color="#ffcc00" marginTop="10">High Score: 0</text>
-  <text name="btn-back" fontSize="18" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="25" cursor="pointer">BACK</text>
+  <text name="stat-games" fontSize="15" color="#ffffff" marginTop="15">Games Played: 0</text>
+  <text name="stat-rounds" fontSize="15" color="#ffffff" marginTop="8">Rounds Cleared: 0</text>
+  <text name="stat-enemies" fontSize="15" color="#ffffff" marginTop="8">Enemies Defeated: 0</text>
+  <text name="stat-cubes" fontSize="15" color="#ffffff" marginTop="8">Cubes Hopped: 0</text>
+  <text name="stat-high" fontSize="15" color="#ffcc00" marginTop="8">High Score: 0</text>
+  <text name="lb-title" fontSize="20" color="#ff8800" fontWeight="bold" marginTop="18">LEADERBOARD</text>
+  <text name="lb-0" fontSize="14" color="#ffffff" marginTop="8">#1: ---</text>
+  <text name="lb-1" fontSize="14" color="#ffffff" marginTop="5">#2: ---</text>
+  <text name="lb-2" fontSize="14" color="#ffffff" marginTop="5">#3: ---</text>
+  <text name="lb-3" fontSize="14" color="#ffffff" marginTop="5">#4: ---</text>
+  <text name="lb-4" fontSize="14" color="#ffffff" marginTop="5">#5: ---</text>
+  <text name="btn-back" fontSize="18" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="18" cursor="pointer">BACK</text>
 </view>

@@ -20,12 +20,19 @@ export interface CubeData {
 }
 
 export interface EnemyData {
-  type: 'coily' | 'slick' | 'sam';
+  type: 'coily' | 'slick' | 'sam' | 'ugg' | 'wrongway';
   row: number;
   col: number;
   active: boolean;
   isEgg: boolean;
   moveTimer: number;
+}
+
+export interface HighScoreEntry {
+  score: number;
+  round: number;
+  mode: GameMode;
+  date: string;
 }
 
 export interface Achievement {
@@ -75,6 +82,7 @@ export interface GameState {
   soundEnabled: boolean;
   musicEnabled: boolean;
   stats: CareerStats;
+  highScores: HighScoreEntry[];
   achievements: Achievement[];
   achievementPage: number;
   pendingInput: { dr: number; dc: number } | null;
@@ -89,13 +97,22 @@ export interface GameState {
   roundAnnounceTimer: number;
   freezeActive: boolean;
   scoreBoostActive: boolean;
+  roundStartTime: number;
+  roundElapsed: number;
+  powerUpsCollectedTypes: Set<PowerUpType>;
+  uggWrongwaysSurvived: number;
+  // Camera shake on death
+  cameraShakeIntensity: number;
+  cameraShakeTimer: number;
+  // Cube pulse animations
+  cubePulses: { index: number; timer: number; color: number }[];
 }
 
-export const COLOR_SCHEMES: Record<ColorScheme, { start: number; target: number; mid: number; accent: number; bg: number }> = {
-  cyan:    { start: 0x1a1a3a, target: 0x00ffff, mid: 0x007777, accent: 0x00cccc, bg: 0x000a14 },
-  green:   { start: 0x1a3a1a, target: 0x00ff88, mid: 0x007744, accent: 0x00cc66, bg: 0x000a08 },
-  magenta: { start: 0x3a1a3a, target: 0xff00ff, mid: 0x770077, accent: 0xcc00cc, bg: 0x140014 },
-  gold:    { start: 0x3a3a1a, target: 0xffcc00, mid: 0x776600, accent: 0xccaa00, bg: 0x141000 },
+export const COLOR_SCHEMES: Record<ColorScheme, { start: number; target: number; mid: number; mid2: number; accent: number; bg: number }> = {
+  cyan:    { start: 0x1a1a3a, target: 0x00ffff, mid: 0x005577, mid2: 0x00aacc, accent: 0x00cccc, bg: 0x000a14 },
+  green:   { start: 0x1a3a1a, target: 0x00ff88, mid: 0x005533, mid2: 0x00aa66, accent: 0x00cc66, bg: 0x000a08 },
+  magenta: { start: 0x3a1a3a, target: 0xff00ff, mid: 0x550055, mid2: 0xaa00aa, accent: 0xcc00cc, bg: 0x140014 },
+  gold:    { start: 0x3a3a1a, target: 0xffcc00, mid: 0x554400, mid2: 0xaa8800, accent: 0xccaa00, bg: 0x141000 },
 };
 
 export function defaultAchievements(): Achievement[] {
@@ -120,6 +137,16 @@ export function defaultAchievements(): Achievement[] {
     { id: 'play_50', name: 'Veteran', desc: 'Play 50 games', unlocked: false },
     { id: 'disc_use', name: 'Disc Jockey', desc: 'Use a flying disc', unlocked: false },
     { id: 'cubes_100', name: 'Color Wizard', desc: 'Change 100 cubes total', unlocked: false },
+    { id: 'combo_5', name: 'Combo Master', desc: 'Reach a 5x combo', unlocked: false },
+    { id: 'combo_10', name: 'Combo Legend', desc: 'Reach a 10x combo', unlocked: false },
+    { id: 'all_powerups', name: 'Powered Up', desc: 'Collect all 3 power-up types', unlocked: false },
+    { id: 'survive_ugg', name: 'Side Stepper', desc: 'Survive 3 Ugg/Wrongway enemies', unlocked: false },
+    { id: 'round_15', name: 'Halfway Hero', desc: 'Complete 15 rounds', unlocked: false },
+    { id: 'no_disc', name: 'Grounded', desc: 'Clear round 5 without using discs', unlocked: false },
+    { id: 'speedrun', name: 'Speedrunner', desc: 'Clear a round in under 15 seconds', unlocked: false },
+    { id: 'score_250k', name: 'Quarter Million', desc: 'Score 250,000 points', unlocked: false },
+    { id: 'multihop', name: 'Double Dip', desc: 'Change a 2-step cube to target', unlocked: false },
+    { id: 'freeze_coily', name: 'Cold Snap', desc: 'Freeze Coily with a freeze power-up', unlocked: false },
   ];
 }
 
@@ -154,6 +181,23 @@ export function saveAchievements(achs: Achievement[]): void {
     const ids = achs.filter(a => a.unlocked).map(a => a.id);
     localStorage.setItem('qbert_achievements', JSON.stringify(ids));
   } catch { /* ignore */ }
+}
+
+function loadHighScores(): HighScoreEntry[] {
+  try {
+    const raw = localStorage.getItem('qbert_highscores');
+    if (raw) return JSON.parse(raw) as HighScoreEntry[];
+  } catch { /* ignore */ }
+  return [];
+}
+
+export function saveHighScore(entry: HighScoreEntry): void {
+  const scores = loadHighScores();
+  scores.push(entry);
+  scores.sort((a, b) => b.score - a.score);
+  const top5 = scores.slice(0, 5);
+  try { localStorage.setItem('qbert_highscores', JSON.stringify(top5)); } catch { /* ignore */ }
+  state.highScores = top5;
 }
 
 export function cubePos(row: number, col: number): { x: number; y: number; z: number } {
@@ -199,6 +243,7 @@ export const state: GameState = {
   soundEnabled: true,
   musicEnabled: true,
   stats: loadStats(),
+  highScores: loadHighScores(),
   achievements: loadAchievements(),
   achievementPage: 0,
   pendingInput: null,
@@ -213,11 +258,30 @@ export const state: GameState = {
   roundAnnounceTimer: 0,
   freezeActive: false,
   scoreBoostActive: false,
+  roundStartTime: 0,
+  roundElapsed: 0,
+  powerUpsCollectedTypes: new Set<PowerUpType>(),
+  uggWrongwaysSurvived: 0,
+  cameraShakeIntensity: 0,
+  cameraShakeTimer: 0,
+  cubePulses: [],
 };
 
 export function initCubes(): void {
   state.cubes = [];
-  const tgt = state.difficulty === 'hard' && state.round > 2 ? 2 : 1;
+  // Multi-step cubes: round 3+ on hard = 2-step, round 7+ on hard = 3-step
+  // Medium: round 5+ = 2-step, round 10+ = 3-step
+  // Easy: round 8+ = 2-step
+  let tgt = 1;
+  if (state.difficulty === 'hard') {
+    if (state.round > 6) tgt = 3;
+    else if (state.round > 2) tgt = 2;
+  } else if (state.difficulty === 'medium') {
+    if (state.round > 9) tgt = 3;
+    else if (state.round > 4) tgt = 2;
+  } else {
+    if (state.round > 7) tgt = 2;
+  }
   for (let r = 0; r < PYRAMID_ROWS; r++) {
     for (let c = 0; c <= r; c++) {
       state.cubes.push({ row: r, col: c, colorState: 0, targetState: tgt });
@@ -249,7 +313,7 @@ export interface ActivePowerUp {
   timeLeft: number;
 }
 
-export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn';
+export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move';
 const audioListeners: ((evt: AudioEvent) => void)[] = [];
 export function onAudioEvent(fn: (evt: AudioEvent) => void): void { audioListeners.push(fn); }
 export function emitAudio(evt: AudioEvent): void { for (const fn of audioListeners) fn(evt); }

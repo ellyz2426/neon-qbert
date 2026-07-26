@@ -229,7 +229,7 @@ export class UISystem extends createSystem({
 
     const btnNext = doc.getElementById('btn-next') as UIKit.Text | undefined;
     btnNext?.addEventListener('click', () => {
-      if (state.achievementPage < 1) state.achievementPage++;
+      if (state.achievementPage < 2) state.achievementPage++;
       emitAudio('menu_click');
     });
   }
@@ -294,6 +294,18 @@ export class UISystem extends createSystem({
     setText(doc, 'result-round', 'Round: ' + (state.round - 1));
     setText(doc, 'result-hops', 'Total Hops: ' + state.totalHops);
     setText(doc, 'result-high', 'High Score: ' + state.stats.highScore);
+    // Show leaderboard rank
+    const rank = state.highScores.findIndex(hs => hs.score <= state.score);
+    if (state.gameOver && state.highScores.length > 0) {
+      const pos = rank >= 0 ? rank + 1 : state.highScores.length + 1;
+      if (pos <= 5) {
+        setText(doc, 'result-rank', '#' + pos + ' on Leaderboard!');
+      } else {
+        setText(doc, 'result-rank', '');
+      }
+    } else {
+      setText(doc, 'result-rank', '');
+    }
   }
 
   private updateSettings() {
@@ -313,12 +325,22 @@ export class UISystem extends createSystem({
     setText(doc, 'stat-enemies', 'Enemies Defeated: ' + state.stats.enemiesDefeated);
     setText(doc, 'stat-cubes', 'Cubes Hopped: ' + state.stats.cubesHopped);
     setText(doc, 'stat-high', 'High Score: ' + state.stats.highScore);
+    // Top 5 leaderboard
+    for (let i = 0; i < 5; i++) {
+      const hs = state.highScores[i];
+      if (hs) {
+        setText(doc, 'lb-' + i, '#' + (i + 1) + ': ' + hs.score + ' (R' + hs.round + ' ' + hs.mode + ')');
+      } else {
+        setText(doc, 'lb-' + i, '#' + (i + 1) + ': ---');
+      }
+    }
   }
 
   private updateAchievements() {
     const doc = this.panelDocs['achievements'];
     if (!doc) return;
     const page = state.achievementPage;
+    const totalPages = Math.ceil(state.achievements.length / 10);
     const start = page * 10;
     for (let i = 0; i < 10; i++) {
       const idx = start + i;
@@ -329,7 +351,7 @@ export class UISystem extends createSystem({
         setText(doc, 'ach-' + i, '');
       }
     }
-    setText(doc, 'page-num', 'Page ' + (page + 1) + ' / 2');
+    setText(doc, 'page-num', 'Page ' + (page + 1) + ' / ' + totalPages);
   }
 
   private updateMenu() {

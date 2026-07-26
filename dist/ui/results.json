@@ -76,6 +76,19 @@
       {
         "sourceTag": "text",
         "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "result-rank",
+          "fontsize": "18",
+          "color": "#ff8800",
+          "fontweight": "bold",
+          "margintop": "8"
+        },
+        "dataUid": "uid-7"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
         "children": [
           "PLAY AGAIN"
         ],
@@ -89,7 +102,7 @@
           "margintop": "25",
           "cursor": "pointer"
         },
-        "dataUid": "uid-7"
+        "dataUid": "uid-8"
       },
       {
         "sourceTag": "text",
@@ -107,7 +120,7 @@
           "margintop": "10",
           "cursor": "pointer"
         },
-        "dataUid": "uid-8"
+        "dataUid": "uid-9"
       }
     ],
     "properties": {
@@ -132,7 +145,7 @@
         "column": 0
       },
       "end": {
-        "line": 8,
+        "line": 9,
         "column": 7
       }
     },
@@ -193,7 +206,7 @@
       },
       "end": {
         "line": 6,
-        "column": 160
+        "column": 96
       }
     },
     "uid-8": {
@@ -203,6 +216,16 @@
       },
       "end": {
         "line": 7,
+        "column": 160
+      }
+    },
+    "uid-9": {
+      "start": {
+        "line": 8,
+        "column": 2
+      },
+      "end": {
+        "line": 8,
         "column": 158
       }
     }
