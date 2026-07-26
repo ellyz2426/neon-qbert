@@ -1,0 +1,19 @@
+<view name="root" flexDirection="column" alignItems="center" padding="20" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="500" height="700">
+  <text name="title" fontSize="28" color="#00ffff" fontWeight="bold">ACHIEVEMENTS</text>
+  <text name="ach-0" fontSize="12" color="#aacccc" marginTop="12">-</text>
+  <text name="ach-1" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-2" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-3" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-4" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-5" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-6" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-7" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-8" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="ach-9" fontSize="12" color="#aacccc" marginTop="6">-</text>
+  <text name="page-num" fontSize="14" color="#448888" marginTop="12">Page 1 / 2</text>
+  <view flexDirection="row" marginTop="8" gap="15">
+    <text name="btn-prev" fontSize="16" color="#aacccc" backgroundColor="#112233" padding="8" borderRadius="6" cursor="pointer">PREV</text>
+    <text name="btn-next" fontSize="16" color="#aacccc" backgroundColor="#112233" padding="8" borderRadius="6" cursor="pointer">NEXT</text>
+  </view>
+  <text name="btn-back" fontSize="18" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="15" cursor="pointer">BACK</text>
+</view>

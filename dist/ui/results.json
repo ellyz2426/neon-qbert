@@ -1,0 +1,210 @@
+{
+  "element": {
+    "sourceTag": "view",
+    "type": "custom",
+    "children": [
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "GAME OVER"
+        ],
+        "properties": {
+          "name": "result-title",
+          "fontsize": "32",
+          "color": "#00ffff",
+          "fontweight": "bold"
+        },
+        "dataUid": "uid-2"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "Score: 0"
+        ],
+        "properties": {
+          "name": "result-score",
+          "fontsize": "20",
+          "color": "#ffffff",
+          "margintop": "15"
+        },
+        "dataUid": "uid-3"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "Round: 1"
+        ],
+        "properties": {
+          "name": "result-round",
+          "fontsize": "16",
+          "color": "#aacccc",
+          "margintop": "8"
+        },
+        "dataUid": "uid-4"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "Total Hops: 0"
+        ],
+        "properties": {
+          "name": "result-hops",
+          "fontsize": "16",
+          "color": "#aacccc",
+          "margintop": "8"
+        },
+        "dataUid": "uid-5"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "High Score: 0"
+        ],
+        "properties": {
+          "name": "result-high",
+          "fontsize": "16",
+          "color": "#ffcc00",
+          "margintop": "8"
+        },
+        "dataUid": "uid-6"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "PLAY AGAIN"
+        ],
+        "properties": {
+          "name": "btn-again",
+          "fontsize": "22",
+          "color": "#00ffcc",
+          "backgroundcolor": "#003333",
+          "padding": "12",
+          "borderradius": "8",
+          "margintop": "25",
+          "cursor": "pointer"
+        },
+        "dataUid": "uid-7"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "MAIN MENU"
+        ],
+        "properties": {
+          "name": "btn-menu",
+          "fontsize": "18",
+          "color": "#aacccc",
+          "backgroundcolor": "#112233",
+          "padding": "10",
+          "borderradius": "8",
+          "margintop": "10",
+          "cursor": "pointer"
+        },
+        "dataUid": "uid-8"
+      }
+    ],
+    "properties": {
+      "name": "root",
+      "flexdirection": "column",
+      "alignitems": "center",
+      "justifycontent": "center",
+      "padding": "30",
+      "backgroundcolor": "#000a14",
+      "opacity": "0.95",
+      "borderradius": "16",
+      "width": "450",
+      "height": "450"
+    },
+    "dataUid": "uid-1"
+  },
+  "classes": {},
+  "ranges": {
+    "uid-1": {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 8,
+        "column": 7
+      }
+    },
+    "uid-2": {
+      "start": {
+        "line": 1,
+        "column": 2
+      },
+      "end": {
+        "line": 1,
+        "column": 92
+      }
+    },
+    "uid-3": {
+      "start": {
+        "line": 2,
+        "column": 2
+      },
+      "end": {
+        "line": 2,
+        "column": 88
+      }
+    },
+    "uid-4": {
+      "start": {
+        "line": 3,
+        "column": 2
+      },
+      "end": {
+        "line": 3,
+        "column": 87
+      }
+    },
+    "uid-5": {
+      "start": {
+        "line": 4,
+        "column": 2
+      },
+      "end": {
+        "line": 4,
+        "column": 91
+      }
+    },
+    "uid-6": {
+      "start": {
+        "line": 5,
+        "column": 2
+      },
+      "end": {
+        "line": 5,
+        "column": 91
+      }
+    },
+    "uid-7": {
+      "start": {
+        "line": 6,
+        "column": 2
+      },
+      "end": {
+        "line": 6,
+        "column": 160
+      }
+    },
+    "uid-8": {
+      "start": {
+        "line": 7,
+        "column": 2
+      },
+      "end": {
+        "line": 7,
+        "column": 158
+      }
+    }
+  }
+}

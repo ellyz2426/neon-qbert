@@ -1,0 +1,9 @@
+<view name="root" flexDirection="column" alignItems="center" padding="25" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="450" height="400">
+  <text name="title" fontSize="28" color="#00ffff" fontWeight="bold">CAREER STATS</text>
+  <text name="stat-games" fontSize="16" color="#ffffff" marginTop="20">Games Played: 0</text>
+  <text name="stat-rounds" fontSize="16" color="#ffffff" marginTop="10">Rounds Cleared: 0</text>
+  <text name="stat-enemies" fontSize="16" color="#ffffff" marginTop="10">Enemies Defeated: 0</text>
+  <text name="stat-cubes" fontSize="16" color="#ffffff" marginTop="10">Cubes Hopped: 0</text>
+  <text name="stat-high" fontSize="16" color="#ffcc00" marginTop="10">High Score: 0</text>
+  <text name="btn-back" fontSize="18" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="25" cursor="pointer">BACK</text>
+</view>

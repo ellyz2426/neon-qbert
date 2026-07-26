@@ -1,0 +1,16 @@
+<view name="root" flexDirection="column" alignItems="center" justifyContent="center" padding="30" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="500" height="700">
+  <text name="title" fontSize="42" color="#00ffff" fontWeight="bold">NEON Q*BERT</text>
+  <text name="subtitle" fontSize="16" color="#448888" marginTop="5">VR PYRAMID HOPPER</text>
+  <text name="mode-val" fontSize="14" color="#88aacc" marginTop="15">Mode: ARCADE</text>
+  <view flexDirection="row" marginTop="15" gap="8">
+    <text name="btn-arcade" fontSize="12" color="#ffffff" backgroundColor="#004444" padding="8" borderRadius="6" cursor="pointer">ARCADE</text>
+    <text name="btn-speed" fontSize="12" color="#ffffff" backgroundColor="#444400" padding="8" borderRadius="6" cursor="pointer">SPEED</text>
+    <text name="btn-zen" fontSize="12" color="#ffffff" backgroundColor="#004400" padding="8" borderRadius="6" cursor="pointer">ZEN</text>
+    <text name="btn-challenge" fontSize="12" color="#ffffff" backgroundColor="#440044" padding="8" borderRadius="6" cursor="pointer">CHALLENGE</text>
+  </view>
+  <text name="btn-play" fontSize="28" color="#00ffff" backgroundColor="#003333" padding="15" borderRadius="10" marginTop="25" cursor="pointer" fontWeight="bold">PLAY</text>
+  <text name="btn-settings" fontSize="16" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="12" cursor="pointer">SETTINGS</text>
+  <text name="btn-tutorial" fontSize="16" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="8" cursor="pointer">HOW TO PLAY</text>
+  <text name="btn-stats" fontSize="16" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="8" cursor="pointer">CAREER STATS</text>
+  <text name="btn-achievements" fontSize="16" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="8" cursor="pointer">ACHIEVEMENTS</text>
+</view>

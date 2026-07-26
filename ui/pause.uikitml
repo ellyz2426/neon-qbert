@@ -1,0 +1,6 @@
+<view name="root" flexDirection="column" alignItems="center" justifyContent="center" padding="30" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="400" height="350">
+  <text name="title" fontSize="32" color="#00ffff" fontWeight="bold">PAUSED</text>
+  <text name="btn-resume" fontSize="22" color="#00ffcc" backgroundColor="#003333" padding="12" borderRadius="8" marginTop="25" cursor="pointer">RESUME</text>
+  <text name="btn-restart" fontSize="18" color="#ffcc00" backgroundColor="#332200" padding="10" borderRadius="8" marginTop="12" cursor="pointer">RESTART</text>
+  <text name="btn-quit" fontSize="18" color="#ff4444" backgroundColor="#330000" padding="10" borderRadius="8" marginTop="12" cursor="pointer">QUIT TO MENU</text>
+</view>

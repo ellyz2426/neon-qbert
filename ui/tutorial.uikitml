@@ -1,0 +1,20 @@
+<view name="root" flexDirection="column" alignItems="center" padding="25" backgroundColor="#000a14" opacity="0.95" borderRadius="16" width="500" height="600">
+  <text name="title" fontSize="28" color="#00ffff" fontWeight="bold">HOW TO PLAY</text>
+  <text name="line1" fontSize="14" color="#ccddee" marginTop="15">Hop on cubes to change their color.</text>
+  <text name="line2" fontSize="14" color="#ccddee" marginTop="6">Change ALL cubes to win the round!</text>
+  <text name="line3" fontSize="14" color="#448888" marginTop="12">-- KEYBOARD CONTROLS --</text>
+  <text name="line4" fontSize="12" color="#aacccc" marginTop="6">Q = Up-Left    E = Up-Right</text>
+  <text name="line5" fontSize="12" color="#aacccc" marginTop="4">A = Down-Left  D = Down-Right</text>
+  <text name="line6" fontSize="12" color="#aacccc" marginTop="4">ESC / P = Pause</text>
+  <text name="line7" fontSize="14" color="#448888" marginTop="12">-- VR CONTROLS --</text>
+  <text name="line8" fontSize="12" color="#aacccc" marginTop="6">Thumbstick = Hop direction</text>
+  <text name="line9" fontSize="12" color="#aacccc" marginTop="4">B Button = Pause</text>
+  <text name="line10" fontSize="14" color="#448888" marginTop="12">-- ENEMIES --</text>
+  <text name="line11" fontSize="12" color="#aa88ff" marginTop="6">Coily (purple): Chases you!</text>
+  <text name="line12" fontSize="12" color="#44ff88" marginTop="4">Slick/Sam: Revert cube colors</text>
+  <text name="line13" fontSize="14" color="#448888" marginTop="12">-- FLYING DISCS --</text>
+  <text name="line14" fontSize="12" color="#ff8800" marginTop="6">Orange platforms at pyramid edges.</text>
+  <text name="line15" fontSize="12" color="#ff8800" marginTop="4">Hop onto them to teleport to top!</text>
+  <text name="line16" fontSize="12" color="#ff8800" marginTop="4">Coily will chase and fall off!</text>
+  <text name="btn-back" fontSize="18" color="#aacccc" backgroundColor="#112233" padding="10" borderRadius="8" marginTop="20" cursor="pointer">BACK</text>
+</view>

@@ -1,0 +1,44 @@
+
+> neon-columns@1.0.0 dev:runtime
+> vite
+
+🚀 Generating initial UIKitML files for dev server...
+👁️  UIKitML file watcher started - monitoring for changes...
+
+  VITE v7.3.6  ready in 1765 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://198.19.0.2:5173/
+🖥️  IWSDK: Using SwiftShader (software rendering) — no GPU detected
+📝 UIKitML file change: ui/menu.uikitml
+✅ UIKitML file recompiled: menu.uikitml
+📝 UIKitML file change: ui/hud.uikitml
+✅ UIKitML file recompiled: hud.uikitml
+📝 UIKitML file change: ui/results.uikitml
+✅ UIKitML file recompiled: results.uikitml
+📝 UIKitML file change: ui/pause.uikitml
+✅ UIKitML file recompiled: pause.uikitml
+📝 UIKitML file change: ui/settings.uikitml
+✅ UIKitML file recompiled: settings.uikitml
+📝 UIKitML file change: ui/stats.uikitml
+✅ UIKitML file recompiled: stats.uikitml
+📝 UIKitML file change: ui/achievements.uikitml
+✅ UIKitML file recompiled: achievements.uikitml
+📝 UIKitML file change: ui/tutorial.uikitml
+✅ UIKitML file recompiled: tutorial.uikitml
+
+🥽 IWSDK Dev Summary (Development):
+  - Device: metaQuest3
+  - Runtime injected: 1120.1KB
+  - Activation mode: localhost
+  - AI: agent mode (WebSocket at /__iwer_mcp)
+  - Note: Runtime only activates on localhost/local networks
+
+
+🥽 IWSDK Dev Summary (Development):
+  - Device: metaQuest3
+  - Runtime injected: 1120.1KB
+  - Activation mode: localhost
+  - AI: agent mode (WebSocket at /__iwer_mcp)
+  - Note: Runtime only activates on localhost/local networks
+
