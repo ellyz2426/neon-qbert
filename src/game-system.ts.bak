@@ -4,38 +4,22 @@ import {
   Group,
   BoxGeometry,
   SphereGeometry,
-  CylinderGeometry,
   MeshStandardMaterial,
-  MeshBasicMaterial,
   Color,
   Vector3,
-  AdditiveBlending,
 } from '@iwsdk/core';
 import {
   state, initCubes, getCube, allCubesComplete, isValidCube, cubePos,
   PYRAMID_ROWS, CUBE_SIZE, PILLAR_HEIGHT, HOP_DURATION, COLOR_SCHEMES,
   emitAudio, emitEffect, saveStats, saveAchievements,
 } from './game-state';
-import type { EnemyData, ColorScheme, PowerUp, PowerUpType } from './game-state';
-
-const COMBO_WINDOW = 2.0; // seconds to chain combos
-const POWERUP_DURATION = 8.0; // seconds power-ups last
-const POWERUP_SPAWN_BASE = 12.0; // base seconds between power-up spawns
-const ROUND_ANNOUNCE_DURATION = 1.5; // seconds for round announcement
+import type { EnemyData, ColorScheme } from './game-state';
 
 function cubeColor(colorState: number, targetState: number, scheme: ColorScheme): number {
   const cs = COLOR_SCHEMES[scheme];
   if (colorState >= targetState) return cs.target;
   if (colorState === 0) return cs.start;
   return cs.mid;
-}
-
-function powerUpColor(type: PowerUpType): number {
-  switch (type) {
-    case 'shield': return 0x4488ff;
-    case 'scoreboost': return 0xffcc00;
-    case 'freeze': return 0x88ffff;
-  }
 }
 
 export class GameSystem extends createSystem({}) {
@@ -47,24 +31,12 @@ export class GameSystem extends createSystem({}) {
   private enemyIdCounter = 0;
   private deathsThisRound = 0;
 
-  // Power-up visuals
-  private powerUpGroup!: Group;
-  private powerUpMeshes: Map<string, Mesh> = new Map();
-
-  // Shield visual on player
-  private shieldMesh!: Mesh;
-
   init() {
     this.cubeGroup = new Group();
     this.scene.add(this.cubeGroup);
-
-    this.powerUpGroup = new Group();
-    this.scene.add(this.powerUpGroup);
-
     this.buildPyramid();
     this.createPlayer();
     this.createDiscs();
-    this.createShieldMesh();
     state.initialized = true;
   }
 
@@ -104,19 +76,6 @@ export class GameSystem extends createSystem({}) {
     this.scene.add(this.playerMesh);
   }
 
-  private createShieldMesh() {
-    const geo = new SphereGeometry(CUBE_SIZE * 0.5, 16, 16);
-    const mat = new MeshBasicMaterial({
-      color: new Color(0x4488ff),
-      transparent: true,
-      opacity: 0.25,
-      blending: AdditiveBlending,
-    });
-    this.shieldMesh = new Mesh(geo, mat);
-    this.shieldMesh.visible = false;
-    this.scene.add(this.shieldMesh);
-  }
-
   private createDiscs() {
     for (let i = 0; i < 2; i++) {
       const geo = new BoxGeometry(0.4, 0.05, 0.4);
@@ -133,9 +92,11 @@ export class GameSystem extends createSystem({}) {
   }
 
   private positionDiscs() {
+    // Left disc at row 3, col -1 position (off pyramid)
     const leftPos = cubePos(3, -1);
     this.discMeshes[0].position.set(leftPos.x - 0.5, leftPos.y, leftPos.z);
     this.discMeshes[0].visible = state.discLeft && state.screen === 'playing';
+    // Right disc at row 3, col 4 position
     const rightPos = cubePos(3, 4);
     this.discMeshes[1].position.set(rightPos.x + 0.5, rightPos.y, rightPos.z);
     this.discMeshes[1].visible = state.discRight && state.screen === 'playing';
@@ -162,18 +123,6 @@ export class GameSystem extends createSystem({}) {
     state.discUsed = false;
     state.stats.gamesPlayed++;
     saveStats(state.stats);
-    // Reset power-up and combo state
-    state.combo = 0;
-    state.maxCombo = 0;
-    state.comboTimer = 0;
-    state.powerUps = [];
-    state.activePowerUp = null;
-    state.powerUpSpawnTimer = POWERUP_SPAWN_BASE * 0.5; // first spawn sooner
-    state.shieldActive = false;
-    state.freezeActive = false;
-    state.scoreBoostActive = false;
-    state.roundAnnounceTimer = ROUND_ANNOUNCE_DURATION;
-    this.clearPowerUpMeshes();
     this.buildPyramid();
     this.updateCubeColors();
     this.clearEnemyMeshes();
@@ -190,11 +139,6 @@ export class GameSystem extends createSystem({}) {
     state.discLeft = true;
     state.discRight = true;
     this.deathsThisRound = 0;
-    // Reset power-ups for new round but keep active power-up running
-    state.powerUps = [];
-    state.powerUpSpawnTimer = POWERUP_SPAWN_BASE * 0.5;
-    state.roundAnnounceTimer = ROUND_ANNOUNCE_DURATION;
-    this.clearPowerUpMeshes();
     this.buildPyramid();
     this.updateCubeColors();
     this.clearEnemyMeshes();
@@ -205,13 +149,6 @@ export class GameSystem extends createSystem({}) {
       this.scene.remove(mesh);
     }
     this.enemyMeshes.clear();
-  }
-
-  private clearPowerUpMeshes() {
-    for (const [, mesh] of this.powerUpMeshes) {
-      this.powerUpGroup.remove(mesh);
-    }
-    this.powerUpMeshes.clear();
   }
 
   updateCubeColors() {
@@ -225,197 +162,6 @@ export class GameSystem extends createSystem({}) {
       mat.emissive.setHex(col);
     }
   }
-
-  // === Power-Up System ===
-
-  private spawnPowerUp() {
-    if (state.powerUps.length >= 2) return; // Max 2 power-ups on field
-    // Pick a random unoccupied cube that isn't the player's cube
-    const candidates = state.cubes.filter(c =>
-      !(c.row === state.playerRow && c.col === state.playerCol) &&
-      !state.powerUps.some(p => p.row === c.row && p.col === c.col)
-    );
-    if (candidates.length === 0) return;
-
-    const cube = candidates[Math.floor(Math.random() * candidates.length)];
-    const types: PowerUpType[] = ['shield', 'scoreboost', 'freeze'];
-    const type = types[Math.floor(Math.random() * types.length)];
-
-    const powerUp: PowerUp = {
-      type,
-      row: cube.row,
-      col: cube.col,
-      active: true,
-      pulsePhase: 0,
-    };
-    state.powerUps.push(powerUp);
-
-    // Create visual mesh
-    const key = `${cube.row}-${cube.col}`;
-    const color = powerUpColor(type);
-    const pos = cubePos(cube.row, cube.col);
-
-    let geo;
-    if (type === 'shield') {
-      geo = new SphereGeometry(0.12, 8, 8);
-    } else if (type === 'scoreboost') {
-      // Diamond shape using cylinder with 4 segments
-      geo = new CylinderGeometry(0, 0.12, 0.2, 4);
-    } else {
-      // Freeze: small cube
-      geo = new BoxGeometry(0.15, 0.15, 0.15);
-    }
-
-    const mat = new MeshBasicMaterial({
-      color: new Color(color),
-      transparent: true,
-      opacity: 0.9,
-      blending: AdditiveBlending,
-    });
-    const mesh = new Mesh(geo, mat);
-    mesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + 0.3, pos.z);
-    this.powerUpGroup.add(mesh);
-    this.powerUpMeshes.set(key, mesh);
-
-    emitAudio('powerup_spawn');
-  }
-
-  private collectPowerUp(row: number, col: number) {
-    const puIdx = state.powerUps.findIndex(p => p.row === row && p.col === col && p.active);
-    if (puIdx === -1) return;
-
-    const pu = state.powerUps[puIdx];
-    pu.active = false;
-
-    // Remove visual
-    const key = `${row}-${col}`;
-    const mesh = this.powerUpMeshes.get(key);
-    if (mesh) {
-      this.powerUpGroup.remove(mesh);
-      this.powerUpMeshes.delete(key);
-    }
-
-    // Activate effect
-    state.activePowerUp = { type: pu.type, timeLeft: POWERUP_DURATION };
-    switch (pu.type) {
-      case 'shield':
-        state.shieldActive = true;
-        break;
-      case 'scoreboost':
-        state.scoreBoostActive = true;
-        break;
-      case 'freeze':
-        state.freezeActive = true;
-        break;
-    }
-
-    // Remove from array
-    state.powerUps.splice(puIdx, 1);
-
-    const pos = cubePos(row, col);
-    emitAudio('powerup_collect');
-    emitEffect({ type: 'powerup_collect', x: pos.x, y: pos.y + 0.5, z: pos.z, powerUpType: pu.type });
-  }
-
-  private updatePowerUps(delta: number, time: number) {
-    // Spawn timer
-    state.powerUpSpawnTimer -= delta;
-    if (state.powerUpSpawnTimer <= 0) {
-      state.powerUpSpawnTimer = POWERUP_SPAWN_BASE - Math.min(state.round * 0.5, 5);
-      this.spawnPowerUp();
-    }
-
-    // Animate power-up meshes (pulsing glow + bobbing)
-    for (const pu of state.powerUps) {
-      if (!pu.active) continue;
-      pu.pulsePhase += delta * 3;
-      const key = `${pu.row}-${pu.col}`;
-      const mesh = this.powerUpMeshes.get(key);
-      if (mesh) {
-        const pos = cubePos(pu.row, pu.col);
-        const bob = Math.sin(pu.pulsePhase) * 0.08;
-        mesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + 0.3 + bob, pos.z);
-        mesh.rotation.y = time * 2;
-        const mat = mesh.material as MeshBasicMaterial;
-        mat.opacity = 0.6 + Math.sin(pu.pulsePhase * 1.5) * 0.3;
-      }
-    }
-
-    // Active power-up duration
-    if (state.activePowerUp) {
-      state.activePowerUp.timeLeft -= delta;
-      if (state.activePowerUp.timeLeft <= 0) {
-        // Deactivate
-        switch (state.activePowerUp.type) {
-          case 'shield':
-            state.shieldActive = false;
-            break;
-          case 'scoreboost':
-            state.scoreBoostActive = false;
-            break;
-          case 'freeze':
-            state.freezeActive = false;
-            break;
-        }
-        state.activePowerUp = null;
-      }
-    }
-
-    // Update shield visual
-    this.shieldMesh.visible = state.shieldActive && state.screen === 'playing' && !state.deathAnimating;
-    if (this.shieldMesh.visible) {
-      this.shieldMesh.position.copy(this.playerMesh.position);
-      const mat = this.shieldMesh.material as MeshBasicMaterial;
-      mat.opacity = 0.15 + Math.sin(time * 4) * 0.1;
-    }
-  }
-
-  // === Combo System ===
-
-  private incrementCombo() {
-    state.combo++;
-    if (state.combo > state.maxCombo) {
-      state.maxCombo = state.combo;
-    }
-    state.comboTimer = COMBO_WINDOW;
-    if (state.combo >= 2) {
-      emitAudio('combo');
-      const pos = cubePos(state.playerRow, state.playerCol);
-      emitEffect({ type: 'combo', x: pos.x, y: pos.y + 1, z: pos.z, combo: state.combo });
-    }
-  }
-
-  private resetCombo() {
-    state.combo = 0;
-    state.comboTimer = 0;
-  }
-
-  private updateCombo(delta: number) {
-    if (state.comboTimer > 0) {
-      state.comboTimer -= delta;
-      if (state.comboTimer <= 0) {
-        this.resetCombo();
-      }
-    }
-  }
-
-  private getScoreMultiplier(): number {
-    let mult = 1;
-    if (state.combo >= 2) mult += (state.combo - 1) * 0.25; // +0.25 per combo level
-    if (state.scoreBoostActive) mult *= 2;
-    return mult;
-  }
-
-  // === Round Announcement ===
-
-  private updateRoundAnnouncement(delta: number) {
-    if (state.roundAnnounceTimer > 0) {
-      state.roundAnnounceTimer -= delta;
-      // During announcement, don't spawn enemies
-    }
-  }
-
-  // === Enemies ===
 
   private spawnEnemy() {
     const types: EnemyData['type'][] = state.mode === 'zen' ? [] :
@@ -436,6 +182,7 @@ export class GameSystem extends createSystem({}) {
     };
     const id = this.enemyIdCounter++;
     state.enemies.push(enemy);
+    // Create mesh
     const geo = new SphereGeometry(CUBE_SIZE * 0.3, 8, 8);
     const color = type === 'coily' ? 0xaa00ff : type === 'slick' ? 0x00ff44 : 0x4488ff;
     const mat = new MeshStandardMaterial({
@@ -452,9 +199,6 @@ export class GameSystem extends createSystem({}) {
   }
 
   private moveEnemies(delta: number) {
-    // If freeze is active, don't move enemies
-    if (state.freezeActive) return;
-
     const speed = state.difficulty === 'easy' ? 2.5 : state.difficulty === 'hard' ? 1.2 : 1.8;
     const keysToRemove: number[] = [];
     let enemyIdx = 0;
@@ -469,6 +213,7 @@ export class GameSystem extends createSystem({}) {
 
       if (enemy.type === 'coily') {
         if (enemy.isEgg) {
+          // Egg falls down pyramid
           const dc = Math.random() > 0.5 ? 1 : 0;
           enemy.row++;
           enemy.col += dc;
@@ -480,6 +225,7 @@ export class GameSystem extends createSystem({}) {
             enemy.isEgg = false;
           }
         } else {
+          // Chase player
           const dr = state.playerRow > enemy.row ? 1 : state.playerRow < enemy.row ? -1 : 0;
           const dc = state.playerCol > enemy.col ? 1 : state.playerCol < enemy.col ? -1 : 0;
           const newRow = enemy.row + dr;
@@ -488,12 +234,14 @@ export class GameSystem extends createSystem({}) {
             enemy.row = newRow;
             enemy.col = newCol;
           } else {
+            // Try just moving row
             if (dr !== 0 && isValidCube(enemy.row + dr, enemy.col)) {
               enemy.row += dr;
             }
           }
         }
       } else {
+        // Slick/Sam: descend, revert cubes
         const dc = Math.random() > 0.5 ? 1 : 0;
         enemy.row++;
         enemy.col += dc;
@@ -509,6 +257,7 @@ export class GameSystem extends createSystem({}) {
         }
       }
 
+      // Update mesh position
       if (enemy.active) {
         const meshKey = meshKeys[enemyIdx];
         const mesh = meshKey !== undefined ? this.enemyMeshes.get(meshKey) : undefined;
@@ -532,22 +281,11 @@ export class GameSystem extends createSystem({}) {
     for (const enemy of state.enemies) {
       if (!enemy.active) continue;
       if (enemy.row === state.playerRow && enemy.col === state.playerCol) {
-        if (state.shieldActive) {
-          // Shield absorbs the hit
-          state.shieldActive = false;
-          state.activePowerUp = null;
-          // Destroy the enemy
-          enemy.active = false;
-          state.stats.enemiesDefeated++;
-          const pos = cubePos(enemy.row, enemy.col);
-          emitAudio('enemy_die');
-          emitEffect({ type: 'enemy_die', x: pos.x, y: pos.y + 0.5, z: pos.z });
-          return;
-        }
         this.playerDeath();
         return;
       }
     }
+    // Check if player fell off
     if (!isValidCube(state.playerRow, state.playerCol)) {
       this.playerDeath();
     }
@@ -555,12 +293,10 @@ export class GameSystem extends createSystem({}) {
 
   private playerDeath() {
     if (state.deathAnimating || state.gameOver) return;
-    // Shield doesn't protect from falling off (already checked above for enemy collisions)
     state.lives--;
     state.deathAnimating = true;
     state.deathTimer = 1.0;
     this.deathsThisRound++;
-    this.resetCombo();
     const pos = cubePos(state.playerRow, state.playerCol);
     emitAudio('death');
     emitEffect({ type: 'death', x: pos.x, y: pos.y + 0.5, z: pos.z });
@@ -572,6 +308,7 @@ export class GameSystem extends createSystem({}) {
   private respawnPlayer() {
     state.deathAnimating = false;
     if (state.gameOver) {
+      // Update high score
       if (state.score > state.stats.highScore) {
         state.stats.highScore = state.score;
         saveStats(state.stats);
@@ -582,34 +319,34 @@ export class GameSystem extends createSystem({}) {
     state.playerRow = 0;
     state.playerCol = 0;
     state.hopping = false;
+    // Remove enemies on respawn
     state.enemies = [];
     this.clearEnemyMeshes();
     state.enemySpawnTimer = 0;
-    // Reset player opacity
-    (this.playerMesh.material as MeshStandardMaterial).opacity = 1;
   }
 
   tryHop(dr: number, dc: number) {
     if (state.hopping || state.deathAnimating || state.roundComplete || state.screen !== 'playing') return;
-    // Block input during round announcement
-    if (state.roundAnnounceTimer > 0) return;
-
     const newRow = state.playerRow + dr;
     const newCol = state.playerCol + dc;
 
+    // Check for disc usage
     if (!isValidCube(newRow, newCol)) {
+      // Check left disc
       if (state.discLeft && newCol < 0 && newRow >= 2 && newRow <= 4) {
         state.discLeft = false;
         state.discUsed = true;
         this.useDisc();
         return;
       }
+      // Check right disc
       if (state.discRight && newCol > newRow && newRow >= 2 && newRow <= 4) {
         state.discRight = false;
         state.discUsed = true;
         this.useDisc();
         return;
       }
+      // Fall off
       state.hopFromRow = state.playerRow;
       state.hopFromCol = state.playerCol;
       state.hopToRow = newRow;
@@ -634,14 +371,15 @@ export class GameSystem extends createSystem({}) {
   }
 
   private useDisc() {
+    // Transport back to top
     state.playerRow = 0;
     state.playerCol = 0;
     state.hopping = false;
+    // Coily falls off
     for (const enemy of state.enemies) {
       if (enemy.type === 'coily' && enemy.active) {
         enemy.active = false;
-        const points = Math.round(500 * this.getScoreMultiplier());
-        state.score += points;
+        state.score += 500;
         state.stats.enemiesDefeated++;
         emitAudio('enemy_die');
         this.checkAchievement('defeat_coily');
@@ -661,19 +399,12 @@ export class GameSystem extends createSystem({}) {
       return;
     }
 
-    // Check for power-up collection
-    this.collectPowerUp(state.playerRow, state.playerCol);
-
     const cube = getCube(state.playerRow, state.playerCol);
     if (cube && cube.colorState < cube.targetState) {
       cube.colorState++;
-      const basePoints = 25;
-      const mult = this.getScoreMultiplier();
-      state.score += Math.round(basePoints * mult);
+      state.score += 25;
       emitAudio('color_change');
       this.updateCubeColors();
-      // Increment combo on cube color change
-      this.incrementCombo();
     }
 
     const pos = cubePos(state.playerRow, state.playerCol);
@@ -688,8 +419,7 @@ export class GameSystem extends createSystem({}) {
 
   private completeRound() {
     state.roundComplete = true;
-    const roundBonus = Math.round(1000 * this.getScoreMultiplier());
-    state.score += roundBonus;
+    state.score += 1000;
     state.round++;
     state.stats.roundsCleared++;
     saveStats(state.stats);
@@ -704,6 +434,7 @@ export class GameSystem extends createSystem({}) {
     if (state.mode === 'speed') this.checkAchievement('speed_clear');
     if (state.mode === 'challenge') this.checkAchievement('challenge_clear');
 
+    // Brief pause then next round
     setTimeout(() => {
       if (state.screen === 'playing') {
         this.startRound();
@@ -724,9 +455,10 @@ export class GameSystem extends createSystem({}) {
     if (state.screen !== 'playing') return;
 
     if (state.deathAnimating) {
+      // Player falls/fades
       this.playerMesh.position.y -= 0.05;
-      const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.opacity = Math.max(0, state.deathTimer);
+      (this.playerMesh.material as MeshStandardMaterial).opacity =
+        Math.max(0, state.deathTimer);
       return;
     }
 
@@ -743,65 +475,18 @@ export class GameSystem extends createSystem({}) {
       const pos = cubePos(state.playerRow, state.playerCol);
       this.playerMesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35, pos.z);
     }
-
-    // Pulse player color based on active power-up
-    if (state.activePowerUp) {
-      const color = powerUpColor(state.activePowerUp.type);
-      const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.emissive.setHex(color);
-      mat.emissiveIntensity = 0.8;
-    } else {
-      const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.emissive.setHex(0xffffff);
-      mat.emissiveIntensity = 0.6;
-    }
   }
 
-  // === Frozen enemy visual ===
-  private updateFrozenEnemies(time: number) {
-    if (state.freezeActive) {
-      for (const [, mesh] of this.enemyMeshes) {
-        const mat = mesh.material as MeshStandardMaterial;
-        // Tint enemies blue-ish when frozen
-        mat.emissive.setHex(0x88ffff);
-        mat.emissiveIntensity = 0.3 + Math.sin(time * 6) * 0.15;
-      }
-    } else {
-      // Reset enemy colors when not frozen
-      let idx = 0;
-      for (const enemy of state.enemies) {
-        const meshKeys = Array.from(this.enemyMeshes.keys());
-        const key = meshKeys[idx];
-        if (key !== undefined) {
-          const mesh = this.enemyMeshes.get(key);
-          if (mesh) {
-            const color = enemy.type === 'coily' ? 0xaa00ff : enemy.type === 'slick' ? 0x00ff44 : 0x4488ff;
-            const mat = mesh.material as MeshStandardMaterial;
-            mat.emissive.setHex(color);
-            mat.emissiveIntensity = 0.5;
-          }
-        }
-        idx++;
-      }
-    }
-  }
-
-  update(delta: number, time: number) {
+  update(delta: number, _time: number) {
     if (state.screen !== 'playing') {
       this.playerMesh.visible = false;
-      this.shieldMesh.visible = false;
       for (const [, m] of this.enemyMeshes) m.visible = false;
       for (const d of this.discMeshes) d.visible = false;
-      for (const [, m] of this.powerUpMeshes) m.visible = false;
       return;
     }
 
     this.playerMesh.visible = true;
     for (const [, m] of this.enemyMeshes) m.visible = true;
-    for (const [, m] of this.powerUpMeshes) m.visible = true;
-
-    // Round announcement pause
-    this.updateRoundAnnouncement(delta);
 
     // Handle pending input
     if (state.pendingInput && !state.hopping && !state.deathAnimating && !state.roundComplete) {
@@ -826,14 +511,8 @@ export class GameSystem extends createSystem({}) {
       }
     }
 
-    // Combo timer
-    this.updateCombo(delta);
-
-    // Power-up system
-    this.updatePowerUps(delta, time);
-
-    // Enemy spawning (delayed during round announcement)
-    if (!state.deathAnimating && !state.roundComplete && state.mode !== 'zen' && state.roundAnnounceTimer <= 0) {
+    // Enemy spawning
+    if (!state.deathAnimating && !state.roundComplete && state.mode !== 'zen') {
       state.enemySpawnTimer += delta;
       const spawnInterval = state.difficulty === 'easy' ? 8 : state.difficulty === 'hard' ? 4 : 6;
       if (state.enemySpawnTimer >= spawnInterval) {
@@ -845,7 +524,6 @@ export class GameSystem extends createSystem({}) {
     // Move enemies
     this.moveEnemies(delta);
     this.updateCubeColors();
-    this.updateFrozenEnemies(time);
 
     // Speed mode timer
     if (state.mode === 'speed' && !state.deathAnimating && !state.roundComplete) {
@@ -874,6 +552,7 @@ export class GameSystem extends createSystem({}) {
     if (state.stats.gamesPlayed >= 10) this.checkAchievement('play_10');
     if (state.stats.gamesPlayed >= 50) this.checkAchievement('play_50');
 
+    // Zen mode achievement
     if (state.mode === 'zen' && state.stats.roundsCleared >= 5) {
       this.checkAchievement('zen_5');
     }
@@ -886,6 +565,7 @@ export class GameSystem extends createSystem({}) {
     this.updatePlayerMesh();
     this.positionDiscs();
 
+    // Rotate discs
     for (const d of this.discMeshes) {
       if (d.visible) d.rotation.y += delta * 3;
     }

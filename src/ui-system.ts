@@ -261,6 +261,29 @@ export class UISystem extends createSystem({
     } else {
       setText(doc, 'timer-val', '');
     }
+
+    // Combo display
+    if (state.combo >= 2) {
+      setText(doc, 'combo-val', 'COMBO x' + state.combo);
+    } else {
+      setText(doc, 'combo-val', '');
+    }
+
+    // Active power-up display
+    if (state.activePowerUp) {
+      const name = state.activePowerUp.type.toUpperCase();
+      const secs = Math.ceil(state.activePowerUp.timeLeft);
+      setText(doc, 'powerup-val', name + ' ' + secs + 's');
+    } else {
+      setText(doc, 'powerup-val', '');
+    }
+
+    // Round announcement
+    if (state.roundAnnounceTimer > 0) {
+      setText(doc, 'announce-val', 'ROUND ' + state.round);
+    } else {
+      setText(doc, 'announce-val', '');
+    }
   }
 
   private updateResults() {

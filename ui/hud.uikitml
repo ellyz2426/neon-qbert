@@ -1,9 +1,16 @@
-<view name="root" flexDirection="row" alignItems="center" justifyContent="center" padding="10" backgroundColor="#000a14" opacity="0.85" borderRadius="10" width="500" height="60" gap="20">
-  <text name="score-label" fontSize="14" color="#448888">SCORE:</text>
-  <text name="score-val" fontSize="18" color="#00ffff" fontWeight="bold">0</text>
-  <text name="lives-label" fontSize="14" color="#448888">LIVES:</text>
-  <text name="lives-val" fontSize="18" color="#ff4444" fontWeight="bold">3</text>
-  <text name="round-label" fontSize="14" color="#448888">ROUND:</text>
-  <text name="round-val" fontSize="18" color="#ffcc00" fontWeight="bold">1</text>
-  <text name="timer-val" fontSize="14" color="#ff8800"></text>
+<view name="root" flexDirection="column" alignItems="center" justifyContent="center" padding="10" backgroundColor="#000a14" opacity="0.85" borderRadius="10" width="500" height="100" gap="4">
+  <view name="top-row" flexDirection="row" alignItems="center" justifyContent="center" gap="20" width="480" height="30">
+    <text name="score-label" fontSize="14" color="#448888">SCORE:</text>
+    <text name="score-val" fontSize="18" color="#00ffff" fontWeight="bold">0</text>
+    <text name="lives-label" fontSize="14" color="#448888">LIVES:</text>
+    <text name="lives-val" fontSize="18" color="#ff4444" fontWeight="bold">3</text>
+    <text name="round-label" fontSize="14" color="#448888">ROUND:</text>
+    <text name="round-val" fontSize="18" color="#ffcc00" fontWeight="bold">1</text>
+    <text name="timer-val" fontSize="14" color="#ff8800"></text>
+  </view>
+  <view name="bottom-row" flexDirection="row" alignItems="center" justifyContent="center" gap="30" width="480" height="30">
+    <text name="combo-val" fontSize="14" color="#ffcc00"></text>
+    <text name="powerup-val" fontSize="14" color="#4488ff"></text>
+    <text name="announce-val" fontSize="20" color="#00ffff" fontWeight="bold"></text>
+  </view>
 </view>

@@ -5,8 +5,8 @@ import type { AudioEvent } from './game-state';
 export class AudioSystem extends createSystem({}) {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private musicOsc: OscillatorNode | null = null;
-  private musicGain: GainNode | null = null;
+  private musicOscs: OscillatorNode[] = [];
+  private musicGains: GainNode[] = [];
   private musicPlaying = false;
 
   init() {
@@ -79,6 +79,28 @@ export class AudioSystem extends createSystem({}) {
       case 'menu_click':
         this.playTone(500, 0.05, 'square', 0.15);
         break;
+      case 'powerup_spawn':
+        // Shimmering spawn sound
+        this.playTone(880, 0.15, 'sine', 0.15);
+        setTimeout(() => this.playTone(1100, 0.2, 'sine', 0.12), 80);
+        setTimeout(() => this.playTone(1320, 0.15, 'sine', 0.1), 160);
+        break;
+      case 'powerup_collect':
+        // Satisfying collect sound - ascending arpeggio
+        this.playTone(523, 0.1, 'sine', 0.25);
+        setTimeout(() => this.playTone(659, 0.1, 'sine', 0.25), 60);
+        setTimeout(() => this.playTone(784, 0.1, 'sine', 0.25), 120);
+        setTimeout(() => this.playTone(1047, 0.2, 'sine', 0.2), 180);
+        break;
+      case 'combo':
+        // Ascending pitch with combo count
+        {
+          const baseFreq = 400 + state.combo * 100;
+          const clampedFreq = Math.min(baseFreq, 1600);
+          this.playTone(clampedFreq, 0.1, 'square', 0.2);
+          this.playTone(clampedFreq * 1.5, 0.15, 'sine', 0.15);
+        }
+        break;
     }
   }
 
@@ -86,34 +108,73 @@ export class AudioSystem extends createSystem({}) {
     if (this.musicPlaying || !state.musicEnabled) return;
     const ctx = this.ensureContext();
     if (!this.masterGain) return;
-    this.musicGain = ctx.createGain();
-    this.musicGain.gain.value = 0.05;
-    this.musicGain.connect(this.masterGain);
 
-    this.musicOsc = ctx.createOscillator();
-    this.musicOsc.type = 'sine';
-    this.musicOsc.frequency.value = 110;
-    this.musicOsc.connect(this.musicGain);
-    this.musicOsc.start();
+    // Multi-oscillator drone with harmonics
+    const baseFreqs = [55, 82.5, 110]; // Root, 5th, octave
+    const types: OscillatorType[] = ['sine', 'sine', 'triangle'];
+    const volumes = [0.06, 0.03, 0.02];
+
+    for (let i = 0; i < baseFreqs.length; i++) {
+      const gain = ctx.createGain();
+      gain.gain.value = volumes[i];
+      gain.connect(this.masterGain);
+
+      const osc = ctx.createOscillator();
+      osc.type = types[i];
+      osc.frequency.value = baseFreqs[i];
+      osc.connect(gain);
+      osc.start();
+
+      this.musicOscs.push(osc);
+      this.musicGains.push(gain);
+    }
+
     this.musicPlaying = true;
   }
 
   private stopMusic() {
     if (!this.musicPlaying) return;
-    try {
-      this.musicOsc?.stop();
-    } catch { /* already stopped */ }
-    this.musicOsc = null;
-    this.musicGain = null;
+    for (const osc of this.musicOscs) {
+      try { osc.stop(); } catch { /* already stopped */ }
+    }
+    this.musicOscs = [];
+    this.musicGains = [];
     this.musicPlaying = false;
   }
 
   private updateMusic(time: number) {
-    if (!this.musicOsc || !this.musicGain) return;
-    // Gentle ambient drone that changes pitch slowly
-    const baseFreq = 55 + Math.sin(time * 0.1) * 20;
-    this.musicOsc.frequency.value = baseFreq;
-    this.musicGain.gain.value = state.musicEnabled ? 0.04 : 0;
+    if (this.musicOscs.length === 0 || this.musicGains.length === 0) return;
+
+    // Base drone with slow modulation
+    const roundFactor = Math.min(state.round, 10);
+
+    // Root oscillator - slow frequency modulation
+    if (this.musicOscs[0]) {
+      const baseFreq = 55 + Math.sin(time * 0.1) * 10;
+      this.musicOscs[0].frequency.value = baseFreq;
+    }
+
+    // 5th - slight detuning based on round for tension
+    if (this.musicOscs[1]) {
+      const fifthFreq = 82.5 + Math.sin(time * 0.15) * 5 + roundFactor * 0.5;
+      this.musicOscs[1].frequency.value = fifthFreq;
+    }
+
+    // Octave harmonic - changes character with round progression
+    if (this.musicOscs[2]) {
+      const octaveFreq = 110 + Math.sin(time * 0.2) * 8 + roundFactor * 1.0;
+      this.musicOscs[2].frequency.value = octaveFreq;
+      // Add more presence at higher rounds
+      if (this.musicGains[2]) {
+        this.musicGains[2].gain.value = 0.02 + roundFactor * 0.003;
+      }
+    }
+
+    // Master music volume
+    const musicVol = state.musicEnabled ? 1 : 0;
+    for (const g of this.musicGains) {
+      // Don't override individual levels, just mute/unmute through master
+    }
   }
 
   update(_delta: number, time: number) {

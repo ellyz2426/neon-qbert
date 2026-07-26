@@ -79,6 +79,16 @@ export interface GameState {
   achievementPage: number;
   pendingInput: { dr: number; dc: number } | null;
   initialized: boolean;
+  combo: number;
+  maxCombo: number;
+  comboTimer: number;
+  powerUps: PowerUp[];
+  activePowerUp: ActivePowerUp | null;
+  powerUpSpawnTimer: number;
+  shieldActive: boolean;
+  roundAnnounceTimer: number;
+  freezeActive: boolean;
+  scoreBoostActive: boolean;
 }
 
 export const COLOR_SCHEMES: Record<ColorScheme, { start: number; target: number; mid: number; accent: number; bg: number }> = {
@@ -193,6 +203,16 @@ export const state: GameState = {
   achievementPage: 0,
   pendingInput: null,
   initialized: false,
+  combo: 0,
+  maxCombo: 0,
+  comboTimer: 0,
+  powerUps: [],
+  activePowerUp: null,
+  powerUpSpawnTimer: 0,
+  shieldActive: false,
+  roundAnnounceTimer: 0,
+  freezeActive: false,
+  scoreBoostActive: false,
 };
 
 export function initCubes(): void {
@@ -214,7 +234,22 @@ export function allCubesComplete(): boolean {
 }
 
 // Audio event bus
-export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click';
+export type PowerUpType = 'shield' | 'scoreboost' | 'freeze';
+
+export interface PowerUp {
+  type: PowerUpType;
+  row: number;
+  col: number;
+  active: boolean;
+  pulsePhase: number;
+}
+
+export interface ActivePowerUp {
+  type: PowerUpType;
+  timeLeft: number;
+}
+
+export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn';
 const audioListeners: ((evt: AudioEvent) => void)[] = [];
 export function onAudioEvent(fn: (evt: AudioEvent) => void): void { audioListeners.push(fn); }
 export function emitAudio(evt: AudioEvent): void { for (const fn of audioListeners) fn(evt); }
@@ -223,7 +258,9 @@ export function emitAudio(evt: AudioEvent): void { for (const fn of audioListene
 export type EffectEvent = { type: 'hop_land'; x: number; y: number; z: number }
   | { type: 'death'; x: number; y: number; z: number }
   | { type: 'round_complete' }
-  | { type: 'enemy_die'; x: number; y: number; z: number };
+  | { type: 'enemy_die'; x: number; y: number; z: number }
+  | { type: 'powerup_collect'; x: number; y: number; z: number; powerUpType: PowerUpType }
+  | { type: 'combo'; x: number; y: number; z: number; combo: number };
 const effectListeners: ((evt: EffectEvent) => void)[] = [];
 export function onEffectEvent(fn: (evt: EffectEvent) => void): void { effectListeners.push(fn); }
 export function emitEffect(evt: EffectEvent): void { for (const fn of effectListeners) fn(evt); }

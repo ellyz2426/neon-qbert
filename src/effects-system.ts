@@ -9,13 +9,21 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { state, onEffectEvent, COLOR_SCHEMES, cubePos, PYRAMID_ROWS } from './game-state';
-import type { EffectEvent } from './game-state';
+import type { EffectEvent, PowerUpType } from './game-state';
 
 interface Particle {
   mesh: Mesh;
   velocity: Vector3;
   life: number;
   maxLife: number;
+}
+
+function powerUpEffectColor(type: PowerUpType): number {
+  switch (type) {
+    case 'shield': return 0x4488ff;
+    case 'scoreboost': return 0xffcc00;
+    case 'freeze': return 0x88ffff;
+  }
 }
 
 export class EffectsSystem extends createSystem({}) {
@@ -32,7 +40,15 @@ export class EffectsSystem extends createSystem({}) {
 
   private createAmbientOrbs() {
     const cs = COLOR_SCHEMES[state.colorScheme];
-    for (let i = 0; i < 15; i++) {
+    // More orbs at higher rounds
+    const orbCount = 15 + Math.min(state.round, 10) * 2;
+    // Clean up old orbs
+    for (const orb of this.ambientOrbs) {
+      this.scene.remove(orb);
+    }
+    this.ambientOrbs = [];
+
+    for (let i = 0; i < orbCount; i++) {
       const geo = new SphereGeometry(0.05 + Math.random() * 0.05, 6, 6);
       const mat = new MeshBasicMaterial({
         color: new Color(cs.accent),
@@ -52,11 +68,10 @@ export class EffectsSystem extends createSystem({}) {
   }
 
   private spawnParticles(x: number, y: number, z: number, count: number, color: number, speed: number) {
-    const cs = COLOR_SCHEMES[state.colorScheme];
     for (let i = 0; i < count; i++) {
       const geo = new SphereGeometry(0.03, 4, 4);
       const mat = new MeshBasicMaterial({
-        color: new Color(color || cs.target),
+        color: new Color(color),
         transparent: true,
         opacity: 1,
         blending: AdditiveBlending,
@@ -82,6 +97,35 @@ export class EffectsSystem extends createSystem({}) {
     }
   }
 
+  private spawnRingBurst(x: number, y: number, z: number, count: number, color: number, radius: number) {
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const geo = new SphereGeometry(0.04, 4, 4);
+      const mat = new MeshBasicMaterial({
+        color: new Color(color),
+        transparent: true,
+        opacity: 1,
+        blending: AdditiveBlending,
+      });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      this.particleGroup.add(mesh);
+
+      const vel = new Vector3(
+        Math.cos(angle) * radius * 3,
+        0.5 + Math.random() * 0.5,
+        Math.sin(angle) * radius * 3
+      );
+
+      this.particles.push({
+        mesh,
+        velocity: vel,
+        life: 0.8,
+        maxLife: 0.8,
+      });
+    }
+  }
+
   private handleEffect(evt: EffectEvent) {
     const cs = COLOR_SCHEMES[state.colorScheme];
     switch (evt.type) {
@@ -89,10 +133,11 @@ export class EffectsSystem extends createSystem({}) {
         this.spawnParticles(evt.x, evt.y, evt.z, 8, cs.target, 1);
         break;
       case 'death':
-        this.spawnParticles(evt.x, evt.y, evt.z, 20, 0xff0000, 2);
+        this.spawnParticles(evt.x, evt.y, evt.z, 25, 0xff0000, 2.5);
+        // Additional red ring burst on death
+        this.spawnRingBurst(evt.x, evt.y, evt.z, 12, 0xff4400, 0.5);
         break;
       case 'round_complete':
-        // Spawn particles at each cube
         for (let r = 0; r < PYRAMID_ROWS; r++) {
           for (let c = 0; c <= r; c++) {
             const pos = cubePos(r, c);
@@ -102,6 +147,21 @@ export class EffectsSystem extends createSystem({}) {
         break;
       case 'enemy_die':
         this.spawnParticles(evt.x, evt.y, evt.z, 12, 0xaa00ff, 1.5);
+        break;
+      case 'powerup_collect':
+        {
+          const color = powerUpEffectColor(evt.powerUpType);
+          // Big burst + ring
+          this.spawnParticles(evt.x, evt.y, evt.z, 20, color, 2);
+          this.spawnRingBurst(evt.x, evt.y, evt.z, 16, color, 0.6);
+        }
+        break;
+      case 'combo':
+        {
+          // Golden upward burst, bigger with higher combos
+          const count = Math.min(evt.combo * 4, 24);
+          this.spawnParticles(evt.x, evt.y, evt.z, count, 0xffcc00, 1 + evt.combo * 0.3);
+        }
         break;
     }
   }
@@ -127,14 +187,26 @@ export class EffectsSystem extends createSystem({}) {
     for (let i = 0; i < this.ambientOrbs.length; i++) {
       const orb = this.ambientOrbs[i];
       const offset = i * 0.7;
-      orb.position.y += Math.sin(time * 0.5 + offset) * delta * 0.3;
-      orb.position.x += Math.cos(time * 0.3 + offset) * delta * 0.1;
+      // Faster movement at higher rounds
+      const speedMult = 1 + Math.min(state.round, 10) * 0.1;
+      orb.position.y += Math.sin(time * 0.5 * speedMult + offset) * delta * 0.3;
+      orb.position.x += Math.cos(time * 0.3 * speedMult + offset) * delta * 0.1;
       // Wrap around
       if (orb.position.y > 7) orb.position.y = -1;
       if (orb.position.y < -1) orb.position.y = 7;
       const mat = orb.material as MeshBasicMaterial;
       mat.color.setHex(cs.accent);
       mat.opacity = 0.2 + Math.sin(time + offset) * 0.15;
+    }
+
+    // Limit total particles to avoid performance issues
+    if (this.particles.length > 200) {
+      const excess = this.particles.length - 200;
+      for (let i = 0; i < excess; i++) {
+        const p = this.particles[0];
+        this.particleGroup.remove(p.mesh);
+        this.particles.shift();
+      }
     }
   }
 }
