@@ -105,6 +105,21 @@ export class AudioSystem extends createSystem({}) {
         // Low rumble for lateral movement
         this.playTone(180, 0.12, 'triangle', 0.12);
         break;
+      case 'bonus_start':
+        // Exciting ascending fanfare
+        this.playChord([523, 659, 784], 0.2);
+        setTimeout(() => this.playChord([587, 740, 880], 0.2), 120);
+        setTimeout(() => this.playChord([659, 784, 1047], 0.2), 240);
+        setTimeout(() => this.playChord([784, 988, 1175], 0.3), 360);
+        break;
+      case 'bonus_tick':
+        // Countdown tick
+        this.playTone(1000, 0.05, 'square', 0.15);
+        break;
+      case 'wave_pulse':
+        // Soft chime for wave cascade
+        this.playTone(880 + Math.random() * 200, 0.08, 'sine', 0.06);
+        break;
     }
   }
 

@@ -1,0 +1,33 @@
+
+> neon-qbert@1.0.0 dev:runtime
+> vite
+
+🚀 Generating initial UIKitML files for dev server...
+👁️  UIKitML file watcher started - monitoring for changes...
+
+  VITE v7.3.6  ready in 1983 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://198.19.0.2:5173/
+
+🔧 IWSDK: Chromium browser not found. Installing (first time only)...
+
+Removing unused browser at /home/hatch/.cache/ms-playwright/chromium-1208
+Removing unused browser at /home/hatch/.cache/ms-playwright/chromium_headless_shell-1208
+Downloading Chrome for Testing 151.0.7922.34 (playwright chromium v1234) from https://cdn.playwright.dev/builds/cft/151.0.7922.34/linux64/chrome-linux64.zip
+
+🥽 IWSDK Dev Summary (Development):
+  - Device: metaQuest3
+  - Runtime injected: 1120.1KB
+  - Activation mode: localhost
+  - AI: agent mode (WebSocket at /__iwer_mcp)
+  - Note: Runtime only activates on localhost/local networks
+
+
+🥽 IWSDK Dev Summary (Development):
+  - Device: metaQuest3
+  - Runtime injected: 1120.1KB
+  - Activation mode: localhost
+  - AI: agent mode (WebSocket at /__iwer_mcp)
+  - Note: Runtime only activates on localhost/local networks
+

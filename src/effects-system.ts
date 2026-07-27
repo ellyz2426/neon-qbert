@@ -97,6 +97,34 @@ export class EffectsSystem extends createSystem({}) {
     }
   }
 
+  private spawnTrailParticle(x: number, y: number, z: number) {
+    const cs = COLOR_SCHEMES[state.colorScheme];
+    const geo = new SphereGeometry(0.025, 4, 4);
+    const mat = new MeshBasicMaterial({
+      color: new Color(cs.target),
+      transparent: true,
+      opacity: 0.7,
+      blending: AdditiveBlending,
+    });
+    const mesh = new Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    this.particleGroup.add(mesh);
+
+    // Trail particles drift slowly downward and fade
+    const vel = new Vector3(
+      (Math.random() - 0.5) * 0.2,
+      -0.3 - Math.random() * 0.2,
+      (Math.random() - 0.5) * 0.2
+    );
+
+    this.particles.push({
+      mesh,
+      velocity: vel,
+      life: 0.4,
+      maxLife: 0.4,
+    });
+  }
+
   private spawnRingBurst(x: number, y: number, z: number, count: number, color: number, radius: number) {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
@@ -162,6 +190,14 @@ export class EffectsSystem extends createSystem({}) {
           const count = Math.min(evt.combo * 4, 24);
           this.spawnParticles(evt.x, evt.y, evt.z, count, 0xffcc00, 1 + evt.combo * 0.3);
         }
+        break;
+      case 'hop_trail':
+        // Small glowing trail particle
+        this.spawnTrailParticle(evt.x, evt.y, evt.z);
+        break;
+      case 'round_wave':
+        // Golden upward fountain per cube
+        this.spawnParticles(evt.x, evt.y, evt.z, 6, 0xffcc00, 1.2);
         break;
     }
   }

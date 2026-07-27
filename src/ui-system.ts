@@ -280,7 +280,9 @@ export class UISystem extends createSystem({
 
     // Round announcement
     if (state.roundAnnounceTimer > 0) {
-      setText(doc, 'announce-val', 'ROUND ' + state.round);
+      setText(doc, 'announce-val', state.bonusRound ? '★ BONUS ROUND ★' : 'ROUND ' + state.round);
+    } else if (state.bonusRound && state.bonusTimer > 0) {
+      setText(doc, 'announce-val', 'BONUS: ' + Math.ceil(state.bonusTimer) + 's');
     } else {
       setText(doc, 'announce-val', '');
     }

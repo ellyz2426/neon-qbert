@@ -48,6 +48,7 @@ export class GameSystem extends createSystem({}) {
   private discMeshes: Mesh[] = [];
   private enemyIdCounter = 0;
   private deathsThisRound = 0;
+  private roundsWithoutDeath = 0;
 
   // Power-up visuals
   private powerUpGroup!: Group;
@@ -182,6 +183,15 @@ export class GameSystem extends createSystem({}) {
     state.cameraShakeIntensity = 0;
     state.cameraShakeTimer = 0;
     state.cubePulses = [];
+    state.bonusRound = false;
+    state.bonusTimer = 0;
+    state.bonusCubesChanged = 0;
+    state.deathFallY = 0;
+    state.deathFallSpin = 0;
+    state.roundWaveTimer = 0;
+    state.roundWaveIndex = 0;
+    state.roundWaveActive = false;
+    state.hopTrailPoints = [];
     this.clearPowerUpMeshes();
     this.buildPyramid();
     this.updateCubeColors();
@@ -206,6 +216,17 @@ export class GameSystem extends createSystem({}) {
     state.roundStartTime = performance.now() / 1000;
     state.roundElapsed = 0;
     state.cubePulses = [];
+    // Bonus round every 5th round
+    state.bonusRound = (state.round % 5 === 0);
+    state.bonusTimer = state.bonusRound ? 20 : 0; // 20 second bonus round
+    state.bonusCubesChanged = 0;
+    state.deathFallY = 0;
+    state.deathFallSpin = 0;
+    state.roundWaveActive = false;
+    state.hopTrailPoints = [];
+    if (state.bonusRound) {
+      emitAudio('bonus_start');
+    }
     this.clearPowerUpMeshes();
     this.buildPyramid();
     this.updateCubeColors();
@@ -633,12 +654,15 @@ export class GameSystem extends createSystem({}) {
     if (state.deathAnimating || state.gameOver) return;
     state.lives--;
     state.deathAnimating = true;
-    state.deathTimer = 1.0;
+    state.deathTimer = 1.2; // slightly longer for fall animation
     this.deathsThisRound++;
     this.resetCombo();
     // Camera shake
     state.cameraShakeIntensity = 0.15;
     state.cameraShakeTimer = 0.4;
+    // Death fall animation state
+    state.deathFallY = 0;
+    state.deathFallSpin = 0;
     const pos = cubePos(state.playerRow, state.playerCol);
     emitAudio('death');
     emitEffect({ type: 'death', x: pos.x, y: pos.y + 0.5, z: pos.z });
@@ -752,9 +776,10 @@ export class GameSystem extends createSystem({}) {
     const cube = getCube(state.playerRow, state.playerCol);
     if (cube && cube.colorState < cube.targetState) {
       cube.colorState++;
-      const basePoints = 25;
+      const basePoints = state.bonusRound ? 50 : 25; // double points in bonus rounds
       const mult = this.getScoreMultiplier();
       state.score += Math.round(basePoints * mult);
+      if (state.bonusRound) state.bonusCubesChanged++;
       emitAudio('color_change');
       this.updateCubeColors();
       // Increment combo on cube color change
@@ -788,6 +813,22 @@ export class GameSystem extends createSystem({}) {
     state.roundComplete = true;
     const roundBonus = Math.round(1000 * this.getScoreMultiplier());
     state.score += roundBonus;
+
+    // Bonus round completion bonus
+    if (state.bonusRound) {
+      const bonusPoints = state.bonusCubesChanged * 100;
+      state.score += bonusPoints;
+      this.checkAchievement('bonus_clear');
+      if (state.bonusCubesChanged >= state.cubes.length) {
+        this.checkAchievement('bonus_perfect');
+      }
+    }
+
+    // Trigger round complete wave animation
+    state.roundWaveActive = true;
+    state.roundWaveTimer = 0;
+    state.roundWaveIndex = 0;
+
     state.round++;
     state.stats.roundsCleared++;
     saveStats(state.stats);
@@ -816,6 +857,17 @@ export class GameSystem extends createSystem({}) {
       this.checkAchievement('survive_ugg');
     }
 
+    // Streak achievement: 3 rounds without dying
+    if (this.deathsThisRound === 0) {
+      this.roundsWithoutDeath = (this.roundsWithoutDeath || 0) + 1;
+      if (this.roundsWithoutDeath >= 3) this.checkAchievement('streak_3');
+    } else {
+      this.roundsWithoutDeath = 0;
+    }
+
+    // Score achievements
+    if (state.score >= 500000) this.checkAchievement('score_500k');
+
     setTimeout(() => {
       if (state.screen === 'playing') {
         this.startRound();
@@ -836,11 +888,25 @@ export class GameSystem extends createSystem({}) {
     if (state.screen !== 'playing') return;
 
     if (state.deathAnimating) {
-      this.playerMesh.position.y -= 0.05;
+      // Enhanced death fall: spin and drop
+      state.deathFallY += 0.12; // accelerating fall
+      state.deathFallSpin += 8;
+      const pos = cubePos(state.playerRow, state.playerCol);
+      this.playerMesh.position.set(
+        pos.x + Math.sin(state.deathFallSpin * 0.1) * 0.3,
+        pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35 - state.deathFallY * state.deathFallY * 0.5,
+        pos.z
+      );
+      this.playerMesh.rotation.x += 0.15;
+      this.playerMesh.rotation.z += 0.1;
       const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.opacity = Math.max(0, state.deathTimer);
+      mat.opacity = Math.max(0, state.deathTimer / 1.2);
       return;
     }
+
+    // Reset rotation after death
+    this.playerMesh.rotation.x = 0;
+    this.playerMesh.rotation.z = 0;
 
     if (state.hopping) {
       const t = state.hopProgress;
@@ -850,7 +916,13 @@ export class GameSystem extends createSystem({}) {
       const z = fromPos.z + (toPos.z - fromPos.z) * t;
       const baseY = fromPos.y + (toPos.y - fromPos.y) * t;
       const arc = Math.sin(t * Math.PI) * 0.8;
-      this.playerMesh.position.set(x, baseY + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35 + arc, z);
+      const py = baseY + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35 + arc;
+      this.playerMesh.position.set(x, py, z);
+
+      // Emit hop trail points
+      if (t > 0.1 && t < 0.9) {
+        emitEffect({ type: 'hop_trail', x, y: py - 0.1, z });
+      }
     } else {
       const pos = cubePos(state.playerRow, state.playerCol);
       this.playerMesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35, pos.z);
@@ -923,6 +995,43 @@ export class GameSystem extends createSystem({}) {
       state.roundElapsed += delta;
     }
 
+    // Bonus round timer countdown
+    if (state.bonusRound && !state.roundComplete && !state.deathAnimating && state.roundAnnounceTimer <= 0) {
+      state.bonusTimer -= delta;
+      // Tick sound in last 5 seconds
+      if (state.bonusTimer <= 5 && state.bonusTimer > 0 && Math.floor(state.bonusTimer + delta) !== Math.floor(state.bonusTimer)) {
+        emitAudio('bonus_tick');
+      }
+      if (state.bonusTimer <= 0) {
+        // Bonus round time up — auto-complete
+        state.bonusTimer = 0;
+        this.completeRound();
+      }
+    }
+
+    // Round complete wave animation
+    if (state.roundWaveActive) {
+      state.roundWaveTimer += delta;
+      const waveInterval = 0.06; // cascade speed
+      const nextIdx = Math.floor(state.roundWaveTimer / waveInterval);
+      while (state.roundWaveIndex < nextIdx && state.roundWaveIndex < state.cubes.length) {
+        const cube = state.cubes[state.roundWaveIndex];
+        const pos = cubePos(cube.row, cube.col);
+        emitEffect({ type: 'round_wave', x: pos.x, y: pos.y + PILLAR_HEIGHT * 0.5, z: pos.z, index: state.roundWaveIndex });
+        emitAudio('wave_pulse');
+        // Trigger cube pulse
+        state.cubePulses.push({
+          index: state.roundWaveIndex,
+          timer: 0.5,
+          color: 0xffcc00,
+        });
+        state.roundWaveIndex++;
+      }
+      if (state.roundWaveIndex >= state.cubes.length) {
+        state.roundWaveActive = false;
+      }
+    }
+
     // Camera shake
     if (state.cameraShakeTimer > 0) {
       state.cameraShakeTimer -= delta;
@@ -983,8 +1092,8 @@ export class GameSystem extends createSystem({}) {
     // Power-up system
     this.updatePowerUps(delta, time);
 
-    // Enemy spawning (delayed during round announcement)
-    if (!state.deathAnimating && !state.roundComplete && state.mode !== 'zen' && state.roundAnnounceTimer <= 0) {
+    // Enemy spawning (delayed during round announcement, skip in bonus rounds)
+    if (!state.deathAnimating && !state.roundComplete && state.mode !== 'zen' && state.roundAnnounceTimer <= 0 && !state.bonusRound) {
       state.enemySpawnTimer += delta;
       const spawnInterval = state.difficulty === 'easy' ? 8 : state.difficulty === 'hard' ? 4 : 6;
       if (state.enemySpawnTimer >= spawnInterval) {
@@ -1021,6 +1130,7 @@ export class GameSystem extends createSystem({}) {
     if (state.score >= 50000) this.checkAchievement('score_50k');
     if (state.score >= 100000) this.checkAchievement('score_100k');
     if (state.score >= 250000) this.checkAchievement('score_250k');
+    if (state.score >= 500000) this.checkAchievement('score_500k');
     if (state.stats.enemiesDefeated >= 10) this.checkAchievement('defeat_10');
     if (state.stats.enemiesDefeated >= 50) this.checkAchievement('defeat_50');
     if (state.stats.gamesPlayed >= 10) this.checkAchievement('play_10');

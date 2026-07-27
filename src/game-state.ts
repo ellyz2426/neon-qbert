@@ -106,6 +106,19 @@ export interface GameState {
   cameraShakeTimer: number;
   // Cube pulse animations
   cubePulses: { index: number; timer: number; color: number }[];
+  // Bonus round
+  bonusRound: boolean;
+  bonusTimer: number;
+  bonusCubesChanged: number;
+  // Death fall
+  deathFallY: number;
+  deathFallSpin: number;
+  // Round complete wave
+  roundWaveTimer: number;
+  roundWaveIndex: number;
+  roundWaveActive: boolean;
+  // Hop trail
+  hopTrailPoints: { x: number; y: number; z: number; life: number }[];
 }
 
 export const COLOR_SCHEMES: Record<ColorScheme, { start: number; target: number; mid: number; mid2: number; accent: number; bg: number }> = {
@@ -147,6 +160,11 @@ export function defaultAchievements(): Achievement[] {
     { id: 'score_250k', name: 'Quarter Million', desc: 'Score 250,000 points', unlocked: false },
     { id: 'multihop', name: 'Double Dip', desc: 'Change a 2-step cube to target', unlocked: false },
     { id: 'freeze_coily', name: 'Cold Snap', desc: 'Freeze Coily with a freeze power-up', unlocked: false },
+    { id: 'bonus_clear', name: 'Bonus Star', desc: 'Complete a bonus round', unlocked: false },
+    { id: 'bonus_perfect', name: 'Bonus Perfection', desc: 'Complete a bonus round with all cubes', unlocked: false },
+    { id: 'streak_3', name: 'On A Roll', desc: 'Complete 3 rounds without dying', unlocked: false },
+    { id: 'score_500k', name: 'Half Million', desc: 'Score 500,000 points', unlocked: false },
+    { id: 'all_modes', name: 'Well Rounded', desc: 'Play all 4 game modes', unlocked: false },
   ];
 }
 
@@ -265,6 +283,15 @@ export const state: GameState = {
   cameraShakeIntensity: 0,
   cameraShakeTimer: 0,
   cubePulses: [],
+  bonusRound: false,
+  bonusTimer: 0,
+  bonusCubesChanged: 0,
+  deathFallY: 0,
+  deathFallSpin: 0,
+  roundWaveTimer: 0,
+  roundWaveIndex: 0,
+  roundWaveActive: false,
+  hopTrailPoints: [],
 };
 
 export function initCubes(): void {
@@ -313,7 +340,7 @@ export interface ActivePowerUp {
   timeLeft: number;
 }
 
-export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move';
+export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move' | 'bonus_start' | 'bonus_tick' | 'wave_pulse';
 const audioListeners: ((evt: AudioEvent) => void)[] = [];
 export function onAudioEvent(fn: (evt: AudioEvent) => void): void { audioListeners.push(fn); }
 export function emitAudio(evt: AudioEvent): void { for (const fn of audioListeners) fn(evt); }
@@ -324,7 +351,9 @@ export type EffectEvent = { type: 'hop_land'; x: number; y: number; z: number }
   | { type: 'round_complete' }
   | { type: 'enemy_die'; x: number; y: number; z: number }
   | { type: 'powerup_collect'; x: number; y: number; z: number; powerUpType: PowerUpType }
-  | { type: 'combo'; x: number; y: number; z: number; combo: number };
+  | { type: 'combo'; x: number; y: number; z: number; combo: number }
+  | { type: 'hop_trail'; x: number; y: number; z: number }
+  | { type: 'round_wave'; x: number; y: number; z: number; index: number };
 const effectListeners: ((evt: EffectEvent) => void)[] = [];
 export function onEffectEvent(fn: (evt: EffectEvent) => void): void { effectListeners.push(fn); }
 export function emitEffect(evt: EffectEvent): void { for (const fn of effectListeners) fn(evt); }
