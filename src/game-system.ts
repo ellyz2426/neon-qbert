@@ -520,7 +520,10 @@ export class GameSystem extends createSystem({}) {
     // If freeze is active, don't move enemies
     if (state.freezeActive) return;
 
-    const speed = state.difficulty === 'easy' ? 2.5 : state.difficulty === 'hard' ? 1.2 : 1.8;
+    const baseSpeed = state.difficulty === 'easy' ? 2.5 : state.difficulty === 'hard' ? 1.2 : 1.8;
+    // Dynamic speed: enemies get 5% faster per round (capped at 40% faster)
+    const speedScale = 1 - Math.min(state.round * 0.05, 0.4);
+    const speed = baseSpeed * speedScale;
     const keysToRemove: number[] = [];
     let enemyIdx = 0;
     const meshKeys = Array.from(this.enemyMeshes.keys());
@@ -753,6 +756,8 @@ export class GameSystem extends createSystem({}) {
         state.score += points;
         state.stats.enemiesDefeated++;
         emitAudio('enemy_die');
+        const epos = cubePos(enemy.row, enemy.col);
+        emitEffect({ type: 'score_popup', x: epos.x, y: epos.y + 0.8, z: epos.z, text: '+' + points });
         this.checkAchievement('defeat_coily');
       }
     }
@@ -778,12 +783,16 @@ export class GameSystem extends createSystem({}) {
       cube.colorState++;
       const basePoints = state.bonusRound ? 50 : 25; // double points in bonus rounds
       const mult = this.getScoreMultiplier();
-      state.score += Math.round(basePoints * mult);
+      const points = Math.round(basePoints * mult);
+      state.score += points;
       if (state.bonusRound) state.bonusCubesChanged++;
       emitAudio('color_change');
       this.updateCubeColors();
       // Increment combo on cube color change
       this.incrementCombo();
+      // Emit score popup
+      const cubeTop = cubePos(state.playerRow, state.playerCol);
+      emitEffect({ type: 'score_popup', x: cubeTop.x, y: cubeTop.y + PILLAR_HEIGHT * 0.5 + 0.5, z: cubeTop.z, text: '+' + points });
       // Trigger cube pulse animation
       const cubeIdx = state.cubes.indexOf(cube);
       if (cubeIdx >= 0) {
@@ -802,6 +811,10 @@ export class GameSystem extends createSystem({}) {
     const pos = cubePos(state.playerRow, state.playerCol);
     emitEffect({ type: 'hop_land', x: pos.x, y: pos.y + PILLAR_HEIGHT * 0.5, z: pos.z });
 
+    // Trigger squash-stretch on landing
+    state.playerSquash = 0.6; // squash to 60%
+    state.playerSquashTimer = 0.2;
+
     this.checkCollisions();
 
     if (allCubesComplete()) {
@@ -813,6 +826,9 @@ export class GameSystem extends createSystem({}) {
     state.roundComplete = true;
     const roundBonus = Math.round(1000 * this.getScoreMultiplier());
     state.score += roundBonus;
+    // Score popup for round bonus
+    const rpos = cubePos(0, 0);
+    emitEffect({ type: 'score_popup', x: rpos.x, y: rpos.y + 1.5, z: rpos.z, text: '+' + roundBonus + ' ROUND CLEAR!' });
 
     // Bonus round completion bonus
     if (state.bonusRound) {
@@ -860,9 +876,11 @@ export class GameSystem extends createSystem({}) {
     // Streak achievement: 3 rounds without dying
     if (this.deathsThisRound === 0) {
       this.roundsWithoutDeath = (this.roundsWithoutDeath || 0) + 1;
+      state.currentStreak = this.roundsWithoutDeath;
       if (this.roundsWithoutDeath >= 3) this.checkAchievement('streak_3');
     } else {
       this.roundsWithoutDeath = 0;
+      state.currentStreak = 0;
     }
 
     // Score achievements
@@ -880,6 +898,10 @@ export class GameSystem extends createSystem({}) {
     if (ach && !ach.unlocked) {
       ach.unlocked = true;
       saveAchievements(state.achievements);
+      // Show notification on HUD
+      state.achNotifyText = '★ ' + ach.name + ' ★';
+      state.achNotifyTimer = 2.5;
+      emitAudio('ach_unlock');
     }
   }
 
@@ -938,6 +960,16 @@ export class GameSystem extends createSystem({}) {
       const mat = this.playerMesh.material as MeshStandardMaterial;
       mat.emissive.setHex(0xffffff);
       mat.emissiveIntensity = 0.6;
+    }
+
+    // Apply squash-stretch animation
+    if (state.playerSquashTimer > 0) {
+      const t = state.playerSquashTimer / 0.2; // normalize 0..1
+      const squashY = state.playerSquash + (1 - state.playerSquash) * (1 - t);
+      const stretchXZ = 1 + (1 - squashY) * 0.5; // wider when squashed
+      this.playerMesh.scale.set(stretchXZ, squashY, stretchXZ);
+    } else {
+      this.playerMesh.scale.set(1, 1, 1);
     }
   }
 
@@ -1088,6 +1120,19 @@ export class GameSystem extends createSystem({}) {
 
     // Combo timer
     this.updateCombo(delta);
+
+    // Squash-stretch timer
+    if (state.playerSquashTimer > 0) {
+      state.playerSquashTimer -= delta;
+    }
+
+    // Achievement notification timer
+    if (state.achNotifyTimer > 0) {
+      state.achNotifyTimer -= delta;
+      if (state.achNotifyTimer <= 0) {
+        state.achNotifyText = '';
+      }
+    }
 
     // Power-up system
     this.updatePowerUps(delta, time);

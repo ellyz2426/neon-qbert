@@ -120,6 +120,14 @@ export class AudioSystem extends createSystem({}) {
         // Soft chime for wave cascade
         this.playTone(880 + Math.random() * 200, 0.08, 'sine', 0.06);
         break;
+      case 'ach_unlock':
+        // Achievement unlock: bright ascending arpeggio with shimmer
+        this.playTone(659, 0.12, 'sine', 0.2);
+        setTimeout(() => this.playTone(784, 0.12, 'sine', 0.2), 80);
+        setTimeout(() => this.playTone(988, 0.12, 'sine', 0.2), 160);
+        setTimeout(() => this.playTone(1175, 0.25, 'sine', 0.15), 240);
+        setTimeout(() => this.playTone(1319, 0.3, 'triangle', 0.1), 320);
+        break;
     }
   }
 

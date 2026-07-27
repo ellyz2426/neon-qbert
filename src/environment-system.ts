@@ -23,6 +23,7 @@ export class EnvironmentSystem extends createSystem({}) {
   private ceilingLights: PointLight[] = [];
   private glowPool!: Mesh;
   private pillarCaps: Mesh[] = [];
+  private stars: Mesh[] = [];
 
   init() {
     this.envGroup = new Group();
@@ -44,6 +45,7 @@ export class EnvironmentSystem extends createSystem({}) {
     this.createPillars();
     this.createCeilingLights();
     this.createGlowPool();
+    this.createStarfield();
   }
 
   private createFloor() {
@@ -135,6 +137,34 @@ export class EnvironmentSystem extends createSystem({}) {
     this.envGroup.add(this.glowPool);
   }
 
+  private createStarfield() {
+    const starCount = 60;
+    for (let i = 0; i < starCount; i++) {
+      const size = 0.02 + Math.random() * 0.04;
+      const geo = new SphereGeometry(size, 4, 4);
+      const brightness = 0.3 + Math.random() * 0.7;
+      const colorHex = brightness > 0.6 ? 0xccddff : 0x8899bb;
+      const mat = new MeshBasicMaterial({
+        color: new Color(colorHex),
+        transparent: true,
+        opacity: 0.3 + Math.random() * 0.5,
+        blending: AdditiveBlending,
+      });
+      const star = new Mesh(geo, mat);
+      // Distribute stars in a dome-like hemisphere above the play area
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.random() * Math.PI * 0.45; // upper hemisphere
+      const r = 12 + Math.random() * 8;
+      star.position.set(
+        Math.cos(theta) * Math.sin(phi) * r,
+        8 + Math.cos(phi) * r * 0.5,
+        Math.sin(theta) * Math.sin(phi) * r
+      );
+      this.envGroup.add(star);
+      this.stars.push(star);
+    }
+  }
+
   update(_delta: number, time: number) {
     const cs = COLOR_SCHEMES[state.colorScheme];
 
@@ -164,5 +194,15 @@ export class EnvironmentSystem extends createSystem({}) {
     (this.floorMesh.material as MeshBasicMaterial).color.setHex(
       (cs.accent & 0xfefefe) >> 2
     );
+
+    // Animate starfield - gentle twinkle
+    for (let i = 0; i < this.stars.length; i++) {
+      const star = this.stars[i];
+      const mat = star.material as MeshBasicMaterial;
+      const phase = i * 1.7 + time * (0.3 + (i % 5) * 0.1);
+      mat.opacity = 0.15 + Math.sin(phase) * 0.25 + Math.sin(phase * 2.3) * 0.1;
+      // Very slow drift
+      star.position.y += Math.sin(time * 0.1 + i) * _delta * 0.02;
+    }
   }
 }

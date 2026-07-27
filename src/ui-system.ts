@@ -269,6 +269,14 @@ export class UISystem extends createSystem({
       setText(doc, 'combo-val', '');
     }
 
+    // Score multiplier display
+    const mult = this.getDisplayMultiplier();
+    if (mult > 1) {
+      setText(doc, 'mult-val', mult.toFixed(1) + 'x MULT');
+    } else {
+      setText(doc, 'mult-val', '');
+    }
+
     // Active power-up display
     if (state.activePowerUp) {
       const name = state.activePowerUp.type.toUpperCase();
@@ -276,6 +284,13 @@ export class UISystem extends createSystem({
       setText(doc, 'powerup-val', name + ' ' + secs + 's');
     } else {
       setText(doc, 'powerup-val', '');
+    }
+
+    // Streak display
+    if (state.currentStreak >= 2) {
+      setText(doc, 'streak-val', state.currentStreak + ' STREAK');
+    } else {
+      setText(doc, 'streak-val', '');
     }
 
     // Round announcement
@@ -286,6 +301,20 @@ export class UISystem extends createSystem({
     } else {
       setText(doc, 'announce-val', '');
     }
+
+    // Achievement notification
+    if (state.achNotifyTimer > 0) {
+      setText(doc, 'ach-notify', state.achNotifyText);
+    } else {
+      setText(doc, 'ach-notify', '');
+    }
+  }
+
+  private getDisplayMultiplier(): number {
+    let mult = 1;
+    if (state.combo >= 2) mult += (state.combo - 1) * 0.25;
+    if (state.scoreBoostActive) mult *= 2;
+    return mult;
   }
 
   private updateResults() {

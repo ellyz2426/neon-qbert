@@ -119,6 +119,16 @@ export interface GameState {
   roundWaveActive: boolean;
   // Hop trail
   hopTrailPoints: { x: number; y: number; z: number; life: number }[];
+  // Achievement notification
+  achNotifyText: string;
+  achNotifyTimer: number;
+  // Player squash-stretch
+  playerSquash: number;
+  playerSquashTimer: number;
+  // Score popup events
+  scorePopups: { x: number; y: number; z: number; text: string; life: number; maxLife: number }[];
+  // Streak display
+  currentStreak: number;
 }
 
 export const COLOR_SCHEMES: Record<ColorScheme, { start: number; target: number; mid: number; mid2: number; accent: number; bg: number }> = {
@@ -292,6 +302,12 @@ export const state: GameState = {
   roundWaveIndex: 0,
   roundWaveActive: false,
   hopTrailPoints: [],
+  achNotifyText: '',
+  achNotifyTimer: 0,
+  playerSquash: 1,
+  playerSquashTimer: 0,
+  scorePopups: [],
+  currentStreak: 0,
 };
 
 export function initCubes(): void {
@@ -340,7 +356,7 @@ export interface ActivePowerUp {
   timeLeft: number;
 }
 
-export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move' | 'bonus_start' | 'bonus_tick' | 'wave_pulse';
+export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move' | 'bonus_start' | 'bonus_tick' | 'wave_pulse' | 'ach_unlock';
 const audioListeners: ((evt: AudioEvent) => void)[] = [];
 export function onAudioEvent(fn: (evt: AudioEvent) => void): void { audioListeners.push(fn); }
 export function emitAudio(evt: AudioEvent): void { for (const fn of audioListeners) fn(evt); }
@@ -353,7 +369,8 @@ export type EffectEvent = { type: 'hop_land'; x: number; y: number; z: number }
   | { type: 'powerup_collect'; x: number; y: number; z: number; powerUpType: PowerUpType }
   | { type: 'combo'; x: number; y: number; z: number; combo: number }
   | { type: 'hop_trail'; x: number; y: number; z: number }
-  | { type: 'round_wave'; x: number; y: number; z: number; index: number };
+  | { type: 'round_wave'; x: number; y: number; z: number; index: number }
+  | { type: 'score_popup'; x: number; y: number; z: number; text: string };
 const effectListeners: ((evt: EffectEvent) => void)[] = [];
 export function onEffectEvent(fn: (evt: EffectEvent) => void): void { effectListeners.push(fn); }
 export function emitEffect(evt: EffectEvent): void { for (const fn of effectListeners) fn(evt); }

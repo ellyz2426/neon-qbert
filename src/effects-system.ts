@@ -154,6 +154,35 @@ export class EffectsSystem extends createSystem({}) {
     }
   }
 
+  private spawnScorePopup(x: number, y: number, z: number) {
+    // Cluster of golden particles that float upward to represent score gain
+    for (let i = 0; i < 5; i++) {
+      const geo = new SphereGeometry(0.04 + i * 0.008, 6, 6);
+      const mat = new MeshBasicMaterial({
+        color: new Color(0xffdd44),
+        transparent: true,
+        opacity: 1,
+        blending: AdditiveBlending,
+      });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.set(x + (Math.random() - 0.5) * 0.15, y + i * 0.06, z);
+      this.particleGroup.add(mesh);
+
+      const vel = new Vector3(
+        (Math.random() - 0.5) * 0.3,
+        1.5 + Math.random() * 0.5,
+        (Math.random() - 0.5) * 0.2
+      );
+
+      this.particles.push({
+        mesh,
+        velocity: vel,
+        life: 1.0,
+        maxLife: 1.0,
+      });
+    }
+  }
+
   private handleEffect(evt: EffectEvent) {
     const cs = COLOR_SCHEMES[state.colorScheme];
     switch (evt.type) {
@@ -198,6 +227,10 @@ export class EffectsSystem extends createSystem({}) {
       case 'round_wave':
         // Golden upward fountain per cube
         this.spawnParticles(evt.x, evt.y, evt.z, 6, 0xffcc00, 1.2);
+        break;
+      case 'score_popup':
+        // Score popup: rising golden glow particles in a cluster to indicate points gained
+        this.spawnScorePopup(evt.x, evt.y, evt.z);
         break;
     }
   }
