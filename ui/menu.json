@@ -1,0 +1,377 @@
+{
+  "element": {
+    "sourceTag": "view",
+    "type": "custom",
+    "children": [
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "NEON Q*BERT"
+        ],
+        "properties": {
+          "name": "title",
+          "fontsize": "42",
+          "color": "#00ffff",
+          "fontweight": "bold"
+        },
+        "dataUid": "uid-2"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "VR PYRAMID HOPPER"
+        ],
+        "properties": {
+          "name": "subtitle",
+          "fontsize": "16",
+          "color": "#448888",
+          "margintop": "5"
+        },
+        "dataUid": "uid-3"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "Mode: ARCADE"
+        ],
+        "properties": {
+          "name": "mode-val",
+          "fontsize": "14",
+          "color": "#88aacc",
+          "margintop": "15"
+        },
+        "dataUid": "uid-4"
+      },
+      {
+        "sourceTag": "view",
+        "type": "custom",
+        "children": [
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "ARCADE"
+            ],
+            "properties": {
+              "name": "btn-arcade",
+              "fontsize": "12",
+              "color": "#ffffff",
+              "backgroundcolor": "#004444",
+              "padding": "8",
+              "borderradius": "6",
+              "cursor": "pointer"
+            },
+            "dataUid": "uid-6"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "SPEED"
+            ],
+            "properties": {
+              "name": "btn-speed",
+              "fontsize": "12",
+              "color": "#ffffff",
+              "backgroundcolor": "#444400",
+              "padding": "8",
+              "borderradius": "6",
+              "cursor": "pointer"
+            },
+            "dataUid": "uid-7"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "ZEN"
+            ],
+            "properties": {
+              "name": "btn-zen",
+              "fontsize": "12",
+              "color": "#ffffff",
+              "backgroundcolor": "#004400",
+              "padding": "8",
+              "borderradius": "6",
+              "cursor": "pointer"
+            },
+            "dataUid": "uid-8"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "CHALLENGE"
+            ],
+            "properties": {
+              "name": "btn-challenge",
+              "fontsize": "12",
+              "color": "#ffffff",
+              "backgroundcolor": "#440044",
+              "padding": "8",
+              "borderradius": "6",
+              "cursor": "pointer"
+            },
+            "dataUid": "uid-9"
+          }
+        ],
+        "properties": {
+          "flexdirection": "row",
+          "margintop": "15",
+          "gap": "8"
+        },
+        "dataUid": "uid-5"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "PLAY"
+        ],
+        "properties": {
+          "name": "btn-play",
+          "fontsize": "28",
+          "color": "#00ffff",
+          "backgroundcolor": "#003333",
+          "padding": "15",
+          "borderradius": "10",
+          "margintop": "25",
+          "cursor": "pointer",
+          "fontweight": "bold"
+        },
+        "dataUid": "uid-10"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "SETTINGS"
+        ],
+        "properties": {
+          "name": "btn-settings",
+          "fontsize": "16",
+          "color": "#aacccc",
+          "backgroundcolor": "#112233",
+          "padding": "10",
+          "borderradius": "8",
+          "margintop": "12",
+          "cursor": "pointer"
+        },
+        "dataUid": "uid-11"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "HOW TO PLAY"
+        ],
+        "properties": {
+          "name": "btn-tutorial",
+          "fontsize": "16",
+          "color": "#aacccc",
+          "backgroundcolor": "#112233",
+          "padding": "10",
+          "borderradius": "8",
+          "margintop": "8",
+          "cursor": "pointer"
+        },
+        "dataUid": "uid-12"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "CAREER STATS"
+        ],
+        "properties": {
+          "name": "btn-stats",
+          "fontsize": "16",
+          "color": "#aacccc",
+          "backgroundcolor": "#112233",
+          "padding": "10",
+          "borderradius": "8",
+          "margintop": "8",
+          "cursor": "pointer"
+        },
+        "dataUid": "uid-13"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "ACHIEVEMENTS"
+        ],
+        "properties": {
+          "name": "btn-achievements",
+          "fontsize": "16",
+          "color": "#aacccc",
+          "backgroundcolor": "#112233",
+          "padding": "10",
+          "borderradius": "8",
+          "margintop": "8",
+          "cursor": "pointer"
+        },
+        "dataUid": "uid-14"
+      }
+    ],
+    "properties": {
+      "name": "root",
+      "flexdirection": "column",
+      "alignitems": "center",
+      "justifycontent": "center",
+      "padding": "30",
+      "backgroundcolor": "#000a14",
+      "opacity": "0.95",
+      "borderradius": "16",
+      "width": "500",
+      "height": "700"
+    },
+    "dataUid": "uid-1"
+  },
+  "classes": {},
+  "ranges": {
+    "uid-1": {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 15,
+        "column": 7
+      }
+    },
+    "uid-2": {
+      "start": {
+        "line": 1,
+        "column": 2
+      },
+      "end": {
+        "line": 1,
+        "column": 87
+      }
+    },
+    "uid-3": {
+      "start": {
+        "line": 2,
+        "column": 2
+      },
+      "end": {
+        "line": 2,
+        "column": 92
+      }
+    },
+    "uid-4": {
+      "start": {
+        "line": 3,
+        "column": 2
+      },
+      "end": {
+        "line": 3,
+        "column": 88
+      }
+    },
+    "uid-5": {
+      "start": {
+        "line": 4,
+        "column": 2
+      },
+      "end": {
+        "line": 9,
+        "column": 9
+      }
+    },
+    "uid-6": {
+      "start": {
+        "line": 5,
+        "column": 4
+      },
+      "end": {
+        "line": 5,
+        "column": 143
+      }
+    },
+    "uid-7": {
+      "start": {
+        "line": 6,
+        "column": 4
+      },
+      "end": {
+        "line": 6,
+        "column": 141
+      }
+    },
+    "uid-8": {
+      "start": {
+        "line": 7,
+        "column": 4
+      },
+      "end": {
+        "line": 7,
+        "column": 137
+      }
+    },
+    "uid-9": {
+      "start": {
+        "line": 8,
+        "column": 4
+      },
+      "end": {
+        "line": 8,
+        "column": 149
+      }
+    },
+    "uid-10": {
+      "start": {
+        "line": 10,
+        "column": 2
+      },
+      "end": {
+        "line": 10,
+        "column": 172
+      }
+    },
+    "uid-11": {
+      "start": {
+        "line": 11,
+        "column": 2
+      },
+      "end": {
+        "line": 11,
+        "column": 161
+      }
+    },
+    "uid-12": {
+      "start": {
+        "line": 12,
+        "column": 2
+      },
+      "end": {
+        "line": 12,
+        "column": 163
+      }
+    },
+    "uid-13": {
+      "start": {
+        "line": 13,
+        "column": 2
+      },
+      "end": {
+        "line": 13,
+        "column": 161
+      }
+    },
+    "uid-14": {
+      "start": {
+        "line": 14,
+        "column": 2
+      },
+      "end": {
+        "line": 14,
+        "column": 168
+      }
+    }
+  }
+}
