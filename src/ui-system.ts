@@ -229,7 +229,8 @@ export class UISystem extends createSystem({
 
     const btnNext = doc.getElementById('btn-next') as UIKit.Text | undefined;
     btnNext?.addEventListener('click', () => {
-      if (state.achievementPage < 2) state.achievementPage++;
+      const totalPages = Math.ceil(state.achievements.length / 10);
+      if (state.achievementPage < totalPages - 1) state.achievementPage++;
       emitAudio('menu_click');
     });
   }

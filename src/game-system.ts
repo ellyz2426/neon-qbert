@@ -16,7 +16,7 @@ import {
   PYRAMID_ROWS, CUBE_SIZE, PILLAR_HEIGHT, HOP_DURATION, COLOR_SCHEMES,
   emitAudio, emitEffect, saveStats, saveAchievements, saveHighScore,
 } from './game-state';
-import type { EnemyData, ColorScheme, PowerUp, PowerUpType } from './game-state';
+import type { EnemyData, ColorScheme, PowerUp, PowerUpType, GreenBallData } from './game-state';
 
 const COMBO_WINDOW = 2.0; // seconds to chain combos
 const POWERUP_DURATION = 8.0; // seconds power-ups last
@@ -57,6 +57,18 @@ export class GameSystem extends createSystem({}) {
   // Shield visual on player
   private shieldMesh!: Mesh;
 
+  // Green ball obstacles
+  private greenBallMeshes: Map<number, Mesh> = new Map();
+  private greenBallIdCounter = 0;
+
+  // Player character parts (Q*bert-inspired creature)
+  private playerBody!: Mesh;
+  private playerEyeL!: Mesh;
+  private playerEyeR!: Mesh;
+  private playerSnout!: Mesh;
+  private playerFeetL!: Mesh;
+  private playerFeetR!: Mesh;
+
   init() {
     this.cubeGroup = new Group();
     this.scene.add(this.cubeGroup);
@@ -94,13 +106,64 @@ export class GameSystem extends createSystem({}) {
   }
 
   private createPlayer() {
-    const geo = new SphereGeometry(CUBE_SIZE * 0.35, 16, 16);
-    const mat = new MeshStandardMaterial({
+    // Q*bert-inspired creature: body sphere with eyes and snout
+    const group = new Group();
+
+    // Body - main sphere
+    const bodyGeo = new SphereGeometry(CUBE_SIZE * 0.35, 16, 16);
+    const bodyMat = new MeshStandardMaterial({
+      color: new Color(0xff8833),
+      emissive: new Color(0xff6600),
+      emissiveIntensity: 0.4,
+    });
+    this.playerBody = new Mesh(bodyGeo, bodyMat);
+    group.add(this.playerBody);
+
+    // Eyes - two small white spheres
+    const eyeGeo = new SphereGeometry(CUBE_SIZE * 0.09, 8, 8);
+    const eyeMat = new MeshStandardMaterial({
       color: new Color(0xffffff),
       emissive: new Color(0xffffff),
-      emissiveIntensity: 0.6,
+      emissiveIntensity: 0.8,
     });
-    this.playerMesh = new Mesh(geo, mat);
+    this.playerEyeL = new Mesh(eyeGeo, eyeMat);
+    this.playerEyeL.position.set(-0.06, 0.08, -0.15);
+    group.add(this.playerEyeL);
+
+    this.playerEyeR = new Mesh(eyeGeo.clone(), eyeMat.clone());
+    this.playerEyeR.position.set(0.06, 0.08, -0.15);
+    group.add(this.playerEyeR);
+
+    // Snout - small cylinder pointing forward
+    const snoutGeo = new CylinderGeometry(0, CUBE_SIZE * 0.08, CUBE_SIZE * 0.2, 8);
+    const snoutMat = new MeshStandardMaterial({
+      color: new Color(0xffaa44),
+      emissive: new Color(0xff8800),
+      emissiveIntensity: 0.3,
+    });
+    this.playerSnout = new Mesh(snoutGeo, snoutMat);
+    this.playerSnout.position.set(0, -0.02, -0.2);
+    this.playerSnout.rotation.x = -Math.PI / 2;
+    group.add(this.playerSnout);
+
+    // Feet - two small flattened spheres at bottom
+    const footGeo = new SphereGeometry(CUBE_SIZE * 0.12, 8, 8);
+    const footMat = new MeshStandardMaterial({
+      color: new Color(0xff6600),
+      emissive: new Color(0xff4400),
+      emissiveIntensity: 0.3,
+    });
+    this.playerFeetL = new Mesh(footGeo, footMat);
+    this.playerFeetL.scale.set(1, 0.5, 1.2);
+    this.playerFeetL.position.set(-0.08, -0.15, 0);
+    group.add(this.playerFeetL);
+
+    this.playerFeetR = new Mesh(footGeo.clone(), footMat.clone());
+    this.playerFeetR.scale.set(1, 0.5, 1.2);
+    this.playerFeetR.position.set(0.08, -0.15, 0);
+    group.add(this.playerFeetR);
+
+    this.playerMesh = group as unknown as Mesh;
     const pos = cubePos(0, 0);
     this.playerMesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35, pos.z);
     this.playerMesh.visible = false;
@@ -193,9 +256,16 @@ export class GameSystem extends createSystem({}) {
     state.roundWaveActive = false;
     state.hopTrailPoints = [];
     this.clearPowerUpMeshes();
+    this.clearGreenBallMeshes();
     this.buildPyramid();
     this.updateCubeColors();
     this.clearEnemyMeshes();
+    state.greenBalls = [];
+    state.greenBallSpawnTimer = 15;
+    state.warpActive = false;
+    state.warpTimer = 0;
+    state.lastMilestone = 0;
+    state.milestoneFlashTimer = 0;
     state.screen = 'playing';
   }
 
@@ -228,6 +298,9 @@ export class GameSystem extends createSystem({}) {
       emitAudio('bonus_start');
     }
     this.clearPowerUpMeshes();
+    this.clearGreenBallMeshes();
+    state.greenBalls = [];
+    state.greenBallSpawnTimer = 15;
     this.buildPyramid();
     this.updateCubeColors();
     this.clearEnemyMeshes();
@@ -245,6 +318,147 @@ export class GameSystem extends createSystem({}) {
       this.powerUpGroup.remove(mesh);
     }
     this.powerUpMeshes.clear();
+  }
+
+  // === Green Ball Obstacle System ===
+
+  private clearGreenBallMeshes() {
+    for (const [, mesh] of this.greenBallMeshes) {
+      this.scene.remove(mesh);
+    }
+    this.greenBallMeshes.clear();
+  }
+
+  private spawnGreenBall() {
+    if (state.greenBalls.length >= 2) return; // Max 2 green balls
+    const startCol = Math.floor(Math.random() * 2); // Start from top row
+    const ball: GreenBallData = {
+      row: 0,
+      col: startCol,
+      active: true,
+      moveTimer: 0,
+      bouncePhase: 0,
+    };
+    state.greenBalls.push(ball);
+
+    const id = this.greenBallIdCounter++;
+    const geo = new SphereGeometry(CUBE_SIZE * 0.25, 12, 12);
+    const mat = new MeshStandardMaterial({
+      color: new Color(0x44ff44),
+      emissive: new Color(0x22ff22),
+      emissiveIntensity: 0.6,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const mesh = new Mesh(geo, mat);
+    const pos = cubePos(0, startCol);
+    mesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.25, pos.z);
+    this.scene.add(mesh);
+    this.greenBallMeshes.set(id, mesh);
+    emitAudio('green_ball_spawn');
+  }
+
+  private moveGreenBalls(delta: number) {
+    const speed = state.difficulty === 'easy' ? 1.6 : state.difficulty === 'hard' ? 0.8 : 1.2;
+    const keysToRemove: number[] = [];
+    const meshKeys = Array.from(this.greenBallMeshes.keys());
+
+    for (let i = 0; i < state.greenBalls.length; i++) {
+      const ball = state.greenBalls[i];
+      if (!ball.active) continue;
+
+      ball.bouncePhase += delta * 8;
+      ball.moveTimer += delta;
+
+      // Update mesh with bounce animation
+      const meshKey = meshKeys[i];
+      const mesh = meshKey !== undefined ? this.greenBallMeshes.get(meshKey) : undefined;
+      if (mesh) {
+        const pos = cubePos(ball.row, ball.col);
+        const bounceY = Math.abs(Math.sin(ball.bouncePhase)) * 0.3;
+        mesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.25 + bounceY, pos.z);
+      }
+
+      if (ball.moveTimer < speed) continue;
+      ball.moveTimer = 0;
+
+      // Move down the pyramid randomly
+      const dc = Math.random() > 0.5 ? 1 : 0;
+      ball.row++;
+      ball.col += dc;
+
+      if (!isValidCube(ball.row, ball.col) || ball.row >= PYRAMID_ROWS) {
+        ball.active = false;
+        if (meshKey !== undefined) keysToRemove.push(meshKey);
+      } else {
+        emitAudio('green_ball_bounce');
+        // Check collision with player
+        if (ball.row === state.playerRow && ball.col === state.playerCol) {
+          if (state.shieldActive) {
+            state.shieldActive = false;
+            state.activePowerUp = null;
+            ball.active = false;
+            if (meshKey !== undefined) keysToRemove.push(meshKey);
+            emitAudio('enemy_die');
+          } else {
+            this.playerDeath();
+          }
+        }
+        // Update mesh position
+        if (ball.active && mesh) {
+          const pos = cubePos(ball.row, ball.col);
+          mesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.25, pos.z);
+        }
+      }
+    }
+
+    for (const key of keysToRemove) {
+      const mesh = this.greenBallMeshes.get(key);
+      if (mesh) this.scene.remove(mesh);
+      this.greenBallMeshes.delete(key);
+    }
+    state.greenBalls = state.greenBalls.filter(b => b.active);
+  }
+
+  private checkGreenBallCollisions() {
+    for (const ball of state.greenBalls) {
+      if (!ball.active) continue;
+      if (ball.row === state.playerRow && ball.col === state.playerCol) {
+        if (state.shieldActive) {
+          state.shieldActive = false;
+          state.activePowerUp = null;
+          ball.active = false;
+          emitAudio('enemy_die');
+        } else {
+          this.playerDeath();
+        }
+        return;
+      }
+    }
+  }
+
+  // === Warp Transition ===
+
+  private startWarpTransition() {
+    state.warpActive = true;
+    state.warpTimer = 0.8; // 0.8s warp
+    emitAudio('warp');
+    emitEffect({ type: 'warp' });
+  }
+
+  // === Score Milestones ===
+
+  private checkScoreMilestone() {
+    const milestones = [5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+    for (const m of milestones) {
+      if (state.score >= m && state.lastMilestone < m) {
+        state.lastMilestone = m;
+        state.milestoneFlashTimer = 1.5;
+        emitAudio('milestone');
+        const label = m >= 1000000 ? (m / 1000000) + 'M' : m >= 1000 ? (m / 1000) + 'K' : String(m);
+        emitEffect({ type: 'score_popup', x: 0, y: 4, z: -1, text: '★ ' + label + ' POINTS ★' });
+      }
+    }
   }
 
   updateCubeColors() {
@@ -426,6 +640,7 @@ export class GameSystem extends createSystem({}) {
     }
     if (state.combo >= 5) this.checkAchievement('combo_5');
     if (state.combo >= 10) this.checkAchievement('combo_10');
+    if (state.combo >= 15) this.checkAchievement('combo_15');
   }
 
   private resetCombo() {
@@ -697,6 +912,9 @@ export class GameSystem extends createSystem({}) {
     state.enemies = [];
     this.clearEnemyMeshes();
     state.enemySpawnTimer = 0;
+    // Clear green balls on respawn
+    state.greenBalls = [];
+    this.clearGreenBallMeshes();
     // Reset player opacity
     (this.playerMesh.material as MeshStandardMaterial).opacity = 1;
   }
@@ -873,11 +1091,12 @@ export class GameSystem extends createSystem({}) {
       this.checkAchievement('survive_ugg');
     }
 
-    // Streak achievement: 3 rounds without dying
+    // Streak achievement: 3 or 5 rounds without dying
     if (this.deathsThisRound === 0) {
       this.roundsWithoutDeath = (this.roundsWithoutDeath || 0) + 1;
       state.currentStreak = this.roundsWithoutDeath;
       if (this.roundsWithoutDeath >= 3) this.checkAchievement('streak_3');
+      if (this.roundsWithoutDeath >= 5) this.checkAchievement('no_death_5');
     } else {
       this.roundsWithoutDeath = 0;
       state.currentStreak = 0;
@@ -885,10 +1104,20 @@ export class GameSystem extends createSystem({}) {
 
     // Score achievements
     if (state.score >= 500000) this.checkAchievement('score_500k');
+    if (state.score >= 1000000) this.checkAchievement('score_1m');
+    if (state.score >= 1000000) this.checkAchievement('score_1m');
+
+    // Round achievements
+    if (state.stats.roundsCleared >= 30) this.checkAchievement('round_30');
 
     setTimeout(() => {
       if (state.screen === 'playing') {
-        this.startRound();
+        this.startWarpTransition();
+        setTimeout(() => {
+          if (state.screen === 'playing') {
+            this.startRound();
+          }
+        }, 800);
       }
     }, 2000);
   }
@@ -911,7 +1140,7 @@ export class GameSystem extends createSystem({}) {
 
     if (state.deathAnimating) {
       // Enhanced death fall: spin and drop
-      state.deathFallY += 0.12; // accelerating fall
+      state.deathFallY += 0.12;
       state.deathFallSpin += 8;
       const pos = cubePos(state.playerRow, state.playerCol);
       this.playerMesh.position.set(
@@ -921,14 +1150,20 @@ export class GameSystem extends createSystem({}) {
       );
       this.playerMesh.rotation.x += 0.15;
       this.playerMesh.rotation.z += 0.1;
-      const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.opacity = Math.max(0, state.deathTimer / 1.2);
+      // Fade out body
+      const bodyMat = this.playerBody.material as MeshStandardMaterial;
+      bodyMat.transparent = true;
+      bodyMat.opacity = Math.max(0, state.deathTimer / 1.2);
       return;
     }
 
     // Reset rotation after death
     this.playerMesh.rotation.x = 0;
     this.playerMesh.rotation.z = 0;
+    // Reset opacity
+    const bodyMat = this.playerBody.material as MeshStandardMaterial;
+    bodyMat.transparent = false;
+    bodyMat.opacity = 1;
 
     if (state.hopping) {
       const t = state.hopProgress;
@@ -945,6 +1180,9 @@ export class GameSystem extends createSystem({}) {
       if (t > 0.1 && t < 0.9) {
         emitEffect({ type: 'hop_trail', x, y: py - 0.1, z });
       }
+
+      // Tilt toward movement direction during hop
+      this.playerMesh.rotation.x = Math.sin(t * Math.PI) * 0.3;
     } else {
       const pos = cubePos(state.playerRow, state.playerCol);
       this.playerMesh.position.set(pos.x, pos.y + PILLAR_HEIGHT * 0.5 + CUBE_SIZE * 0.35, pos.z);
@@ -953,20 +1191,18 @@ export class GameSystem extends createSystem({}) {
     // Pulse player color based on active power-up
     if (state.activePowerUp) {
       const color = powerUpColor(state.activePowerUp.type);
-      const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.emissive.setHex(color);
-      mat.emissiveIntensity = 0.8;
+      bodyMat.emissive.setHex(color);
+      bodyMat.emissiveIntensity = 0.8;
     } else {
-      const mat = this.playerMesh.material as MeshStandardMaterial;
-      mat.emissive.setHex(0xffffff);
-      mat.emissiveIntensity = 0.6;
+      bodyMat.emissive.setHex(0xff6600);
+      bodyMat.emissiveIntensity = 0.4;
     }
 
     // Apply squash-stretch animation
     if (state.playerSquashTimer > 0) {
-      const t = state.playerSquashTimer / 0.2; // normalize 0..1
+      const t = state.playerSquashTimer / 0.2;
       const squashY = state.playerSquash + (1 - state.playerSquash) * (1 - t);
-      const stretchXZ = 1 + (1 - squashY) * 0.5; // wider when squashed
+      const stretchXZ = 1 + (1 - squashY) * 0.5;
       this.playerMesh.scale.set(stretchXZ, squashY, stretchXZ);
     } else {
       this.playerMesh.scale.set(1, 1, 1);
@@ -1012,12 +1248,27 @@ export class GameSystem extends createSystem({}) {
       for (const [, m] of this.enemyMeshes) m.visible = false;
       for (const d of this.discMeshes) d.visible = false;
       for (const [, m] of this.powerUpMeshes) m.visible = false;
+      for (const [, m] of this.greenBallMeshes) m.visible = false;
       return;
     }
 
     this.playerMesh.visible = true;
     for (const [, m] of this.enemyMeshes) m.visible = true;
     for (const [, m] of this.powerUpMeshes) m.visible = true;
+    for (const [, m] of this.greenBallMeshes) m.visible = true;
+
+    // Warp transition visual
+    if (state.warpActive) {
+      state.warpTimer -= delta;
+      if (state.warpTimer <= 0) {
+        state.warpActive = false;
+      }
+    }
+
+    // Milestone flash
+    if (state.milestoneFlashTimer > 0) {
+      state.milestoneFlashTimer -= delta;
+    }
 
     // Round announcement pause
     this.updateRoundAnnouncement(delta);
@@ -1152,6 +1403,20 @@ export class GameSystem extends createSystem({}) {
     this.updateCubeColors();
     this.updateFrozenEnemies(time);
 
+    // Green ball spawning and movement (starts round 3, not during bonus)
+    if (!state.deathAnimating && !state.roundComplete && !state.bonusRound && state.round >= 3 && state.roundAnnounceTimer <= 0) {
+      state.greenBallSpawnTimer -= delta;
+      const spawnRate = state.difficulty === 'easy' ? 18 : state.difficulty === 'hard' ? 10 : 14;
+      if (state.greenBallSpawnTimer <= 0) {
+        state.greenBallSpawnTimer = spawnRate - Math.min(state.round * 0.3, 4);
+        this.spawnGreenBall();
+      }
+    }
+    this.moveGreenBalls(delta);
+
+    // Score milestone check
+    this.checkScoreMilestone();
+
     // Speed mode timer
     if (state.mode === 'speed' && !state.deathAnimating && !state.roundComplete) {
       state.timer -= delta;
@@ -1188,6 +1453,7 @@ export class GameSystem extends createSystem({}) {
     // Check collisions
     if (!state.hopping && !state.deathAnimating) {
       this.checkCollisions();
+      this.checkGreenBallCollisions();
     }
 
     this.updatePlayerMesh();

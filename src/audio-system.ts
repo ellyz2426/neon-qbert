@@ -8,6 +8,10 @@ export class AudioSystem extends createSystem({}) {
   private musicOscs: OscillatorNode[] = [];
   private musicGains: GainNode[] = [];
   private musicPlaying = false;
+  // Rhythm system
+  private lastBeatTime = 0;
+  private beatIndex = 0;
+  private lastHiHatTime = 0;
 
   init() {
     onAudioEvent((evt: AudioEvent) => this.playSound(evt));
@@ -46,6 +50,66 @@ export class AudioSystem extends createSystem({}) {
     for (const f of freqs) this.playTone(f, duration, type, 0.15);
   }
 
+  private playNoise(duration: number, volume: number) {
+    if (!state.soundEnabled) return;
+    const ctx = this.ensureContext();
+    if (!this.masterGain) return;
+    // Create noise via oscillator modulation for hi-hat-like sounds
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 6000 + Math.random() * 4000;
+    osc2.type = 'square';
+    osc2.frequency.value = 8000 + Math.random() * 3000;
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+    osc2.start(ctx.currentTime);
+    osc2.stop(ctx.currentTime + duration);
+  }
+
+  private playKick() {
+    if (!state.soundEnabled || !state.musicEnabled) return;
+    const ctx = this.ensureContext();
+    if (!this.masterGain) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+  }
+
+  private playHiHat() {
+    if (!state.soundEnabled || !state.musicEnabled) return;
+    this.playNoise(0.04, 0.04);
+  }
+
+  private playArpNote(noteIndex: number) {
+    if (!state.soundEnabled || !state.musicEnabled) return;
+    // Arpeggio notes that change with round progression
+    const scale = [
+      [220, 277, 330, 440],  // A minor
+      [247, 311, 370, 494],  // B minor
+      [262, 330, 392, 523],  // C major
+      [294, 370, 440, 587],  // D minor
+    ];
+    const scaleIdx = Math.min(Math.floor(state.round / 3), scale.length - 1);
+    const notes = scale[scaleIdx];
+    const freq = notes[noteIndex % notes.length];
+    this.playTone(freq, 0.15, 'triangle', 0.04);
+  }
+
   private playSound(evt: AudioEvent) {
     switch (evt) {
       case 'hop':
@@ -80,20 +144,17 @@ export class AudioSystem extends createSystem({}) {
         this.playTone(500, 0.05, 'square', 0.15);
         break;
       case 'powerup_spawn':
-        // Shimmering spawn sound
         this.playTone(880, 0.15, 'sine', 0.15);
         setTimeout(() => this.playTone(1100, 0.2, 'sine', 0.12), 80);
         setTimeout(() => this.playTone(1320, 0.15, 'sine', 0.1), 160);
         break;
       case 'powerup_collect':
-        // Satisfying collect sound - ascending arpeggio
         this.playTone(523, 0.1, 'sine', 0.25);
         setTimeout(() => this.playTone(659, 0.1, 'sine', 0.25), 60);
         setTimeout(() => this.playTone(784, 0.1, 'sine', 0.25), 120);
         setTimeout(() => this.playTone(1047, 0.2, 'sine', 0.2), 180);
         break;
       case 'combo':
-        // Ascending pitch with combo count
         {
           const baseFreq = 400 + state.combo * 100;
           const clampedFreq = Math.min(baseFreq, 1600);
@@ -102,31 +163,61 @@ export class AudioSystem extends createSystem({}) {
         }
         break;
       case 'ugg_move':
-        // Low rumble for lateral movement
         this.playTone(180, 0.12, 'triangle', 0.12);
         break;
       case 'bonus_start':
-        // Exciting ascending fanfare
         this.playChord([523, 659, 784], 0.2);
         setTimeout(() => this.playChord([587, 740, 880], 0.2), 120);
         setTimeout(() => this.playChord([659, 784, 1047], 0.2), 240);
         setTimeout(() => this.playChord([784, 988, 1175], 0.3), 360);
         break;
       case 'bonus_tick':
-        // Countdown tick
         this.playTone(1000, 0.05, 'square', 0.15);
         break;
       case 'wave_pulse':
-        // Soft chime for wave cascade
         this.playTone(880 + Math.random() * 200, 0.08, 'sine', 0.06);
         break;
       case 'ach_unlock':
-        // Achievement unlock: bright ascending arpeggio with shimmer
         this.playTone(659, 0.12, 'sine', 0.2);
         setTimeout(() => this.playTone(784, 0.12, 'sine', 0.2), 80);
         setTimeout(() => this.playTone(988, 0.12, 'sine', 0.2), 160);
         setTimeout(() => this.playTone(1175, 0.25, 'sine', 0.15), 240);
         setTimeout(() => this.playTone(1319, 0.3, 'triangle', 0.1), 320);
+        break;
+      case 'green_ball_spawn':
+        // Deep thud for green ball
+        this.playTone(120, 0.15, 'sine', 0.15);
+        this.playTone(90, 0.2, 'sine', 0.1);
+        break;
+      case 'green_ball_bounce':
+        // Bounce sound
+        this.playTone(250 + Math.random() * 100, 0.08, 'triangle', 0.08);
+        break;
+      case 'milestone':
+        // Score milestone fanfare — triumphant
+        this.playChord([523, 659, 784, 1047], 0.3);
+        setTimeout(() => this.playChord([587, 740, 880, 1175], 0.3), 150);
+        setTimeout(() => this.playChord([659, 784, 988, 1319], 0.4), 300);
+        setTimeout(() => this.playChord([784, 988, 1175, 1568], 0.5), 450);
+        break;
+      case 'warp':
+        // Warp/transition swoosh
+        {
+          const ctx = this.ensureContext();
+          if (this.masterGain) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.5);
+          }
+        }
         break;
     }
   }
@@ -137,7 +228,7 @@ export class AudioSystem extends createSystem({}) {
     if (!this.masterGain) return;
 
     // Multi-oscillator drone with harmonics
-    const baseFreqs = [55, 82.5, 110]; // Root, 5th, octave
+    const baseFreqs = [55, 82.5, 110];
     const types: OscillatorType[] = ['sine', 'sine', 'triangle'];
     const volumes = [0.06, 0.03, 0.02];
 
@@ -157,6 +248,9 @@ export class AudioSystem extends createSystem({}) {
     }
 
     this.musicPlaying = true;
+    this.lastBeatTime = 0;
+    this.beatIndex = 0;
+    this.lastHiHatTime = 0;
   }
 
   private stopMusic() {
@@ -172,7 +266,6 @@ export class AudioSystem extends createSystem({}) {
   private updateMusic(time: number) {
     if (this.musicOscs.length === 0 || this.musicGains.length === 0) return;
 
-    // Base drone with slow modulation
     const roundFactor = Math.min(state.round, 10);
 
     // Root oscillator - slow frequency modulation
@@ -187,20 +280,43 @@ export class AudioSystem extends createSystem({}) {
       this.musicOscs[1].frequency.value = fifthFreq;
     }
 
-    // Octave harmonic - changes character with round progression
+    // Octave harmonic
     if (this.musicOscs[2]) {
       const octaveFreq = 110 + Math.sin(time * 0.2) * 8 + roundFactor * 1.0;
       this.musicOscs[2].frequency.value = octaveFreq;
-      // Add more presence at higher rounds
       if (this.musicGains[2]) {
         this.musicGains[2].gain.value = 0.02 + roundFactor * 0.003;
       }
     }
 
-    // Master music volume
-    const musicVol = state.musicEnabled ? 1 : 0;
-    for (const g of this.musicGains) {
-      // Don't override individual levels, just mute/unmute through master
+    // Rhythm system — kicks on beat, hi-hats on off-beat, arpeggios evolving
+    // BPM increases subtly with round
+    const bpm = 90 + Math.min(roundFactor * 5, 40); // 90-130 BPM
+    const beatInterval = 60 / bpm;
+    const hiHatInterval = beatInterval / 2;
+
+    // Kick drum on beat (starts from round 2)
+    if (state.round >= 2 && time - this.lastBeatTime >= beatInterval) {
+      this.lastBeatTime = time;
+      this.beatIndex++;
+
+      // Kick pattern: beat 1 and 3 of each 4-beat bar
+      const barBeat = this.beatIndex % 4;
+      if (barBeat === 0 || barBeat === 2) {
+        this.playKick();
+      }
+
+      // Arpeggio on every beat (starts round 4)
+      if (state.round >= 4) {
+        this.playArpNote(this.beatIndex % 4);
+      }
+    }
+
+    // Hi-hat on off-beats (starts from round 3)
+    if (state.round >= 3 && time - this.lastHiHatTime >= hiHatInterval) {
+      this.lastHiHatTime = time;
+      // Only on off-beats (even indices = on-beat, odd = off-beat)
+      this.playHiHat();
     }
   }
 

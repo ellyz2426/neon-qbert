@@ -232,6 +232,11 @@ export class EffectsSystem extends createSystem({}) {
         // Score popup: rising golden glow particles in a cluster to indicate points gained
         this.spawnScorePopup(evt.x, evt.y, evt.z);
         break;
+      case 'warp':
+        // Warp effect: radial burst of white particles from center
+        this.spawnParticles(0, 3, 1, 40, 0xffffff, 4);
+        this.spawnRingBurst(0, 3, 1, 24, 0x88ccff, 1.0);
+        break;
     }
   }
 

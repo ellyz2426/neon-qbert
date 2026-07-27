@@ -28,6 +28,14 @@ export interface EnemyData {
   moveTimer: number;
 }
 
+export interface GreenBallData {
+  row: number;
+  col: number;
+  active: boolean;
+  moveTimer: number;
+  bouncePhase: number;
+}
+
 export interface HighScoreEntry {
   score: number;
   round: number;
@@ -129,6 +137,15 @@ export interface GameState {
   scorePopups: { x: number; y: number; z: number; text: string; life: number; maxLife: number }[];
   // Streak display
   currentStreak: number;
+  // Green ball obstacles
+  greenBalls: GreenBallData[];
+  greenBallSpawnTimer: number;
+  // Warp transition
+  warpActive: boolean;
+  warpTimer: number;
+  // Score milestones
+  lastMilestone: number;
+  milestoneFlashTimer: number;
 }
 
 export const COLOR_SCHEMES: Record<ColorScheme, { start: number; target: number; mid: number; mid2: number; accent: number; bg: number }> = {
@@ -175,6 +192,11 @@ export function defaultAchievements(): Achievement[] {
     { id: 'streak_3', name: 'On A Roll', desc: 'Complete 3 rounds without dying', unlocked: false },
     { id: 'score_500k', name: 'Half Million', desc: 'Score 500,000 points', unlocked: false },
     { id: 'all_modes', name: 'Well Rounded', desc: 'Play all 4 game modes', unlocked: false },
+    { id: 'ball_dodge', name: 'Ball Dodger', desc: 'Survive 5 green balls in one round', unlocked: false },
+    { id: 'score_1m', name: 'Millionaire', desc: 'Score 1,000,000 points', unlocked: false },
+    { id: 'round_30', name: 'Endurance', desc: 'Complete 30 rounds', unlocked: false },
+    { id: 'combo_15', name: 'Combo God', desc: 'Reach a 15x combo', unlocked: false },
+    { id: 'no_death_5', name: 'Untouchable', desc: 'Complete 5 rounds without dying', unlocked: false },
   ];
 }
 
@@ -308,6 +330,12 @@ export const state: GameState = {
   playerSquashTimer: 0,
   scorePopups: [],
   currentStreak: 0,
+  greenBalls: [],
+  greenBallSpawnTimer: 15,
+  warpActive: false,
+  warpTimer: 0,
+  lastMilestone: 0,
+  milestoneFlashTimer: 0,
 };
 
 export function initCubes(): void {
@@ -356,7 +384,7 @@ export interface ActivePowerUp {
   timeLeft: number;
 }
 
-export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move' | 'bonus_start' | 'bonus_tick' | 'wave_pulse' | 'ach_unlock';
+export type AudioEvent = 'hop' | 'color_change' | 'death' | 'round_complete' | 'enemy_spawn' | 'enemy_die' | 'disc_use' | 'menu_click' | 'combo' | 'powerup_collect' | 'powerup_spawn' | 'ugg_move' | 'bonus_start' | 'bonus_tick' | 'wave_pulse' | 'ach_unlock' | 'green_ball_spawn' | 'green_ball_bounce' | 'milestone' | 'warp';
 const audioListeners: ((evt: AudioEvent) => void)[] = [];
 export function onAudioEvent(fn: (evt: AudioEvent) => void): void { audioListeners.push(fn); }
 export function emitAudio(evt: AudioEvent): void { for (const fn of audioListeners) fn(evt); }
@@ -370,7 +398,8 @@ export type EffectEvent = { type: 'hop_land'; x: number; y: number; z: number }
   | { type: 'combo'; x: number; y: number; z: number; combo: number }
   | { type: 'hop_trail'; x: number; y: number; z: number }
   | { type: 'round_wave'; x: number; y: number; z: number; index: number }
-  | { type: 'score_popup'; x: number; y: number; z: number; text: string };
+  | { type: 'score_popup'; x: number; y: number; z: number; text: string }
+  | { type: 'warp' };
 const effectListeners: ((evt: EffectEvent) => void)[] = [];
 export function onEffectEvent(fn: (evt: EffectEvent) => void): void { effectListeners.push(fn); }
 export function emitEffect(evt: EffectEvent): void { for (const fn of effectListeners) fn(evt); }
